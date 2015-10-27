@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <string.h>
+#include <commctrl.h>
 #include <tchar.h>
 
 #ifdef UNICODE
@@ -15,119 +16,60 @@
 #endif
 
 
-
+/*global vars*/
 static TCHAR szWindowClass[] = _T("win32app");
 static TCHAR szTitle[] = _T("CM loader");
+/*end of global vars*/
 
+/*controlls*/
 HINSTANCE hInst;
+/*check box*/
 HWND convertCB;
 HWND compressCB;
-HWND openCM;
-HWND openZip;
+HWND saveLogCB;
+/*static label*/
+HWND configSL;
+HWND compressorSL;
+HWND deviceSL;
+/*push button*/
+HWND openCMPB;
+HWND openZipPB;
+HWND loadCMPB;
+HWND refreshDevicesPB;
+/*line edit*/
 HWND confWayLE;
 HWND zipWayLE;
-HWND buttonLoadCM;
-HWND dropListDevice;
-
+/*drop list*/
+HWND devicesDL;
+/*images & icons*/
 HBITMAP hBitmap = nullptr;
-
+/*progress bar*/
+HWND hProgBar;
+/*end of controlls*/
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
+/*operations*/
 void GetFileName(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
-
+void initControls(HWND hWnd);
+HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine);
+/*end of operations*/
 
 /*events*/
-
 void onConfFileSelected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
 void onZipFileselected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
+/*end of events*/
 
-int WINAPI WinMain(HINSTANCE hInstance,
-	HINSTANCE hPrevInstance,
-	LPSTR lpCmdLine,
-	int nCmdShow)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	WNDCLASSEX wcex;
+	
+	HWND hWnd = initMainWindow(hInstance, hPrevInstance, lpCmdLine);
 
-	wcex.cbSize = sizeof(WNDCLASSEX);
-	wcex.style = CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc = WndProc;
-	wcex.cbClsExtra = 0;
-	wcex.cbWndExtra = 0;
-	wcex.hInstance = hInstance;
-	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
-	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	wcex.hbrBackground = CreateSolidBrush(RGB(240, 240, 240));
-	wcex.lpszMenuName = nullptr;
-	wcex.lpszClassName = szWindowClass;
-	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
-
-	if (!RegisterClassEx(&wcex))
-	{
-		MessageBox(nullptr,
-			_T("Call to RegisterClassEx failed!"),
-			szTitle,
-			NULL);
-
-		return 1;
-	}
-
-	hInst = hInstance;
-	auto hWnd = CreateWindow(
-		szWindowClass,
-		szTitle,
-		(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX),
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		560, 160,
-		NULL,
-		NULL,
-		hInstance,
-		NULL
-		);
-
-	if (!hWnd)
-	{
-		MessageBox(nullptr,
-			_T("Call to CreateWindow failed!"),
-			szTitle,
-			NULL);
-
-		return 1;
-	}
-
-	convertCB = CreateWindow(_T("button"), _T("Сжатие"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-		17, 25, 130, 16, hWnd, reinterpret_cast<HMENU>(1), hInst, nullptr);
-
-	compressCB = CreateWindow(_T("button"), _T("Создать архив"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-		17, 59, 130, 16, hWnd, reinterpret_cast<HMENU>(2), hInst, nullptr);
-
-	confWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\commod.bin\\"),
-		WS_VISIBLE | WS_CHILD | ES_LEFT,
-		150, 22, 350, 25, hWnd, reinterpret_cast<HMENU>(3), hInst, nullptr);
-
-	zipWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\Program Files (x86)\\7-Zip\\7z.exe"),
-		WS_VISIBLE | WS_CHILD | ES_LEFT,
-		150, 55, 350, 25, hWnd, reinterpret_cast<HMENU>(4), hInst, nullptr);
-
-	buttonLoadCM = CreateWindow(_T("button"), _T("Загрузить"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		425, 90, 100, 25, hWnd, reinterpret_cast<HMENU>(5), hInst, NULL);
-
-	openCM = CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		500, 22, 23, 25, hWnd, reinterpret_cast<HMENU>(6), hInst, NULL);
-
-	openZip =  CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		500, 55, 23, 25, hWnd, reinterpret_cast<HMENU>(7), hInst, NULL);
-
-	dropListDevice = CreateWindow(_T("COMBOBOX"),NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWN,
-		60, 62, 136, 60, hWnd,NULL,	hInst,	NULL);
-
-
-	hBitmap = static_cast<HBITMAP>(LoadImage(hInst, _T("D:\\GIT\\configuration-viewer-UIP\\CV uip\\CV uip\\logo-top.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+	initControls(hWnd);
 
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
-	// Main message loop:
 	MSG msg;
 	while (GetMessage(&msg, nullptr, 0, 0))
 	{
@@ -161,15 +103,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		//EndPaint(hWnd, &ps);
 		//break;
+
+	//case WM_SETFONT:
+	//	SendMessage(hWnd, WM_SETFONT, reinterpret_cast<WPARAM >(hFont), TRUE);
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case 6:			
-			onConfFileSelected(hWnd, confWayLE,  _T("*.bin"), _T("Выберете файл конфигурации"));
+		case 6: 
+			SendMessage(GetDlgItem(hWnd, 14), PBS_SMOOTH, 0, 0);
+			SendMessage(GetDlgItem(hWnd, 14), PBM_SETSTEP, 100, 0);
+			SendMessage(GetDlgItem(hWnd, 14), PBM_STEPIT, 0, 0);
 			break;
-		case 7:
-			onZipFileselected(hWnd, zipWayLE, _T("7z.exe"), _T("Выберете архиватор"));
+		case 7:			
+			onConfFileSelected(hWnd, confWayLE,  _T("*.bin"), _T("Выбор файла конфигурации"));
 			break;
+		case 8:
+			onZipFileselected(hWnd, zipWayLE, _T("7z.exe"), _T("Выбор архиватора"));
+			break;
+
 		}
 		break;
 	case WM_DESTROY:
@@ -177,7 +128,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
-		break;
 	}
 
 	return 0;
@@ -201,6 +151,105 @@ void GetFileName(HWND hWnd, HWND lineEdit,  PTCHAR lpstrFilter, PTCHAR lpstrTitl
 	SetWindowText(lineEdit, buf);
 	EnableWindow(hWnd, true);
 	SetFocus(hWnd);
+}
+
+void initControls(HWND hWnd)
+{	
+	/*check boxes*/
+	convertCB = CreateWindow(_T("button"), _T("Сжатие"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+		10, 90, 100, 16, hWnd, reinterpret_cast<HMENU>(1), hInst, nullptr);
+	compressCB = CreateWindow(_T("button"), _T("Создать архив"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+		120, 90, 130, 16, hWnd, reinterpret_cast<HMENU>(2), hInst, nullptr);
+	saveLogCB = CreateWindow(_T("button"), _T("Сохранить лог"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+		270, 90, 130, 16, hWnd, reinterpret_cast<HMENU>(3), hInst, nullptr);
+	/*end of check boxes*/
+
+	/*static labels*/
+	configSL = CreateWindow( _T("STATIC"), _T("Конфигурация:"), WS_CHILD | WS_VISIBLE,
+		10, 23, 100, 20, hWnd, reinterpret_cast<HMENU>(11), hInst, NULL);
+	compressorSL = CreateWindow(_T("STATIC"), _T("Архиватор:"), WS_CHILD | WS_VISIBLE,
+		10, 56, 100, 20, hWnd, reinterpret_cast<HMENU>(12), hInst, NULL);
+	deviceSL = CreateWindow(_T("STATIC"), _T("Устройство:"), WS_CHILD | WS_VISIBLE,
+		10, 123, 100, 20, hWnd, reinterpret_cast<HMENU>(13), hInst, NULL);
+	/*end of static lables*/
+
+	/*line edits*/
+	confWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\commod.bin\\"),
+		WS_VISIBLE | WS_CHILD | ES_LEFT,
+		120, 20, 410, 25, hWnd, reinterpret_cast<HMENU>(4), hInst, nullptr);
+	zipWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\Program Files (x86)\\7-Zip\\7z.exe"),
+		WS_VISIBLE | WS_CHILD | ES_LEFT,
+		120, 55, 410, 25, hWnd, reinterpret_cast<HMENU>(5), hInst, nullptr);
+	/*end of line edits*/
+
+	/*push buttons*/
+	loadCMPB = CreateWindow(_T("button"), _T("Загрузить"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+		450, 155, 100, 25, hWnd, reinterpret_cast<HMENU>(6), hInst, NULL);
+	openCMPB = CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+		530, 20, 23, 25, hWnd, reinterpret_cast<HMENU>(7), hInst, NULL);
+	openZipPB = CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+		530, 55, 23, 25, hWnd, reinterpret_cast<HMENU>(8), hInst, NULL);
+	refreshDevicesPB = CreateWindow(_T("button"), _T("Обновить"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+		450, 119, 100, 25, hWnd, reinterpret_cast<HMENU>(9), hInst, NULL);
+	/*end of push buttons*/
+
+	/*drop lists*/
+	devicesDL = CreateWindow(_T("COMBOBOX"), NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
+		120, 120, 320, 200, hWnd, reinterpret_cast<HMENU>(10), hInst, NULL);
+	/*end of drop lists*/
+
+	/*images and icons*/
+	hBitmap = static_cast<HBITMAP>(LoadImage(hInst, _T("D:\\GIT\\configuration-viewer-UIP\\CV uip\\CV uip\\logo-top.bmp"), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE));
+	/*end of images and icons*/
+
+	/*progress bar*/
+	hProgBar = CreateWindowEx(0, PROGRESS_CLASS, nullptr, WS_CHILD | WS_VISIBLE,
+		10, 157, 430, 20, hWnd, reinterpret_cast<HMENU>(14), hInst, nullptr);
+	/*end of progress bar*/
+}
+
+HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine)
+{
+	WNDCLASSEX wcex;
+	wcex.cbSize = sizeof(WNDCLASSEX);
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = CreateSolidBrush(RGB(240, 240, 240));
+	wcex.lpszMenuName = nullptr;
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
+
+	if (!RegisterClassEx(&wcex))
+	{
+		MessageBox(nullptr,
+			_T("Call to RegisterClassEx failed!"),
+			szTitle,
+			NULL);
+
+		return nullptr;
+	}
+
+	hInst = hInstance;
+	auto hWnd = CreateWindow(szWindowClass, szTitle,
+		(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX),
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		590, 230, NULL, NULL, hInstance, NULL);
+
+	if (!hWnd)
+	{
+		MessageBox(nullptr,
+			_T("Call to CreateWindow failed!"),
+			szTitle,
+			NULL);
+
+		return nullptr;
+	}
+	return hWnd;
 }
 
 void onConfFileSelected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle)
