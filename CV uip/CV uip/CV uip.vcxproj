@@ -21,13 +21,11 @@
   <ItemGroup>
     <ClCompile Include="crc32.cpp" />
     <ClCompile Include="cv.cpp" />
-    <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="StrategyDeployment .cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="crc32.h" />
     <ClInclude Include="ftd2xx.h" />
-    <ClInclude Include="MainWindow.h" />
     <ClInclude Include="StrategyDeployment .h" />
   </ItemGroup>
   <ItemGroup>
@@ -59,7 +57,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>

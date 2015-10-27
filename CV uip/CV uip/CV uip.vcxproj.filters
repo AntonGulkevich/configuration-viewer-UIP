@@ -18,9 +18,6 @@
     <ClCompile Include="StrategyDeployment .cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
-    <ClCompile Include="MainWindow.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
     <ClCompile Include="crc32.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
@@ -30,9 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="StrategyDeployment .h">
-      <Filter>Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="MainWindow.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
     <ClInclude Include="ftd2xx.h">
