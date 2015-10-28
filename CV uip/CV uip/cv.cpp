@@ -47,12 +47,43 @@ HBITMAP hBitmap = nullptr;
 HWND hProgBar;
 /*end of controlls*/
 
+enum  controlls
+{
+	convertCB_ = 1,
+	compressCB_ = 2,
+	saveLogCB_ = 3,
+	configSL_ = 4 ,
+	compressorSL_ = 5,
+	deviceSL_ = 6,
+	openCMPB_ = 7,
+	openZipPB_ = 8,
+	loadCMPB_ = 9,
+	refreshDevicesPB_ = 10,
+	confWayLE_ = 11,
+	zipWayLE_ = 12,
+	devicesDL_ = 13,
+	hBitmap_ = 14,
+	hProgBar_ = 15,
+
+};
+
+enum typeControlls
+{
+	push_button,
+	check_box,
+	static_label,
+	line_edit,
+	drop_list,
+	progress_bar
+};
+
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 /*operations*/
 void GetFileName(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
 void initControls(HWND hWnd);
 HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine);
+HWND createWidget(int type, wchar_t * caption, HWND hWnd, int x, int y, int w, int h, int index);
 /*end of operations*/
 
 /*events*/
@@ -109,15 +140,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case 6: 
-			SendMessage(GetDlgItem(hWnd, 14), PBS_SMOOTH, 0, 0);
-			SendMessage(GetDlgItem(hWnd, 14), PBM_SETSTEP, 100, 0);
-			SendMessage(GetDlgItem(hWnd, 14), PBM_STEPIT, 0, 0);
+		case loadCMPB_: 
+			SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
+			SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 100, 0);
+			SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);
 			break;
-		case 7:			
+		case openCMPB_:
 			onConfFileSelected(hWnd, confWayLE,  _T("*.bin"), _T("Выбор файла конфигурации"));
 			break;
-		case 8:
+		case openZipPB_:
 			onZipFileselected(hWnd, zipWayLE, _T("7z.exe"), _T("Выбор архиватора"));
 			break;
 
@@ -156,46 +187,31 @@ void GetFileName(HWND hWnd, HWND lineEdit,  PTCHAR lpstrFilter, PTCHAR lpstrTitl
 void initControls(HWND hWnd)
 {	
 	/*check boxes*/
-	convertCB = CreateWindow(_T("button"), _T("Сжатие"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-		10, 90, 100, 16, hWnd, reinterpret_cast<HMENU>(1), hInst, nullptr);
-	compressCB = CreateWindow(_T("button"), _T("Создать архив"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-		120, 90, 130, 16, hWnd, reinterpret_cast<HMENU>(2), hInst, nullptr);
-	saveLogCB = CreateWindow(_T("button"), _T("Сохранить лог"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-		270, 90, 130, 16, hWnd, reinterpret_cast<HMENU>(3), hInst, nullptr);
+	convertCB  = createWidget(check_box, _T("Сжатие конфигурации"), hWnd, 10, 90, 200, 16, convertCB_);
+	compressCB = createWidget(check_box, _T("Создать архив"), hWnd, 210, 90, 130, 16, compressCB_);
+	saveLogCB = createWidget(check_box, _T("Сохранить лог"), hWnd, 350, 90, 130, 16, saveLogCB_);
 	/*end of check boxes*/
 
 	/*static labels*/
-	configSL = CreateWindow( _T("STATIC"), _T("Конфигурация:"), WS_CHILD | WS_VISIBLE,
-		10, 23, 100, 20, hWnd, reinterpret_cast<HMENU>(11), hInst, NULL);
-	compressorSL = CreateWindow(_T("STATIC"), _T("Архиватор:"), WS_CHILD | WS_VISIBLE,
-		10, 56, 100, 20, hWnd, reinterpret_cast<HMENU>(12), hInst, NULL);
-	deviceSL = CreateWindow(_T("STATIC"), _T("Устройство:"), WS_CHILD | WS_VISIBLE,
-		10, 123, 100, 20, hWnd, reinterpret_cast<HMENU>(13), hInst, NULL);
-	/*end of static lables*/
+	configSL = createWidget(static_label, _T("Конфигурация"), hWnd, 10, 23, 100, 20, configSL_);
+	compressorSL = createWidget(static_label, _T("Архиватор"), hWnd, 10, 56, 100, 20, compressorSL_);
+	deviceSL = createWidget(static_label, _T("Устройство"), hWnd, 10, 123, 100, 20, deviceSL_);
+	/*end of static labels*/
 
 	/*line edits*/
-	confWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\commod.bin\\"),
-		WS_VISIBLE | WS_CHILD | ES_LEFT,
-		120, 20, 410, 25, hWnd, reinterpret_cast<HMENU>(4), hInst, nullptr);
-	zipWayLE = CreateWindowEx(WS_EX_CLIENTEDGE, _T("EDIT"), _T("D:\\Program Files (x86)\\7-Zip\\7z.exe"),
-		WS_VISIBLE | WS_CHILD | ES_LEFT,
-		120, 55, 410, 25, hWnd, reinterpret_cast<HMENU>(5), hInst, nullptr);
+	confWayLE = createWidget(line_edit, _T("D:\\commod.bin"), hWnd, 120, 20, 410, 25, confWayLE_);
+	zipWayLE = createWidget(line_edit, _T("D:\\Program Files (x86)\\7-Zip\\7z.exe"), hWnd, 120, 55, 410, 25, zipWayLE_);
 	/*end of line edits*/
 
 	/*push buttons*/
-	loadCMPB = CreateWindow(_T("button"), _T("Загрузить"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		450, 155, 100, 25, hWnd, reinterpret_cast<HMENU>(6), hInst, NULL);
-	openCMPB = CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		530, 20, 23, 25, hWnd, reinterpret_cast<HMENU>(7), hInst, NULL);
-	openZipPB = CreateWindow(_T("button"), _T("..."), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		530, 55, 23, 25, hWnd, reinterpret_cast<HMENU>(8), hInst, NULL);
-	refreshDevicesPB = CreateWindow(_T("button"), _T("Обновить"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-		450, 119, 100, 25, hWnd, reinterpret_cast<HMENU>(9), hInst, NULL);
+	loadCMPB  = createWidget(push_button, _T("Загрузить"), hWnd, 450, 155, 100, 25, loadCMPB_);
+	openCMPB  = createWidget(push_button, _T("..."), hWnd, 530, 20, 23, 25, openCMPB_);
+	openZipPB = createWidget(push_button, _T("..."), hWnd, 530, 55, 23, 25, openZipPB_);
+	refreshDevicesPB = createWidget(push_button, _T("Обновить"), hWnd, 450, 119, 100, 25, refreshDevicesPB_);
 	/*end of push buttons*/
 
 	/*drop lists*/
-	devicesDL = CreateWindow(_T("COMBOBOX"), NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
-		120, 120, 320, 200, hWnd, reinterpret_cast<HMENU>(10), hInst, NULL);
+	devicesDL = createWidget(drop_list, nullptr, hWnd, 120, 120, 320, 200, devicesDL_);
 	/*end of drop lists*/
 
 	/*images and icons*/
@@ -203,8 +219,7 @@ void initControls(HWND hWnd)
 	/*end of images and icons*/
 
 	/*progress bar*/
-	hProgBar = CreateWindowEx(0, PROGRESS_CLASS, nullptr, WS_CHILD | WS_VISIBLE,
-		10, 157, 430, 20, hWnd, reinterpret_cast<HMENU>(14), hInst, nullptr);
+	hProgBar = createWidget(drop_list, nullptr, hWnd, 10, 157, 430, 20, hProgBar_);
 	/*end of progress bar*/
 }
 
@@ -236,7 +251,7 @@ HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
 	hInst = hInstance;
 	auto hWnd = CreateWindow(szWindowClass, szTitle,
-		(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX),
+		(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX),
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		590, 230, NULL, NULL, hInstance, NULL);
 
@@ -250,6 +265,31 @@ HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		return nullptr;
 	}
 	return hWnd;
+}
+
+HWND createWidget(int type, wchar_t* caption, HWND hWnd, int x, int y, int w, int h, int index)
+{
+	switch (type) {
+	case push_button:
+		return CreateWindow(WC_BUTTON, caption, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	case check_box:
+		return CreateWindow(WC_BUTTON, caption, WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	case static_label:
+		return CreateWindow(WC_STATIC, caption, WS_CHILD | WS_VISIBLE,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	case line_edit:
+		return CreateWindowEx(WS_EX_CLIENTEDGE, WC_EDIT, caption, WS_VISIBLE | WS_CHILD | ES_LEFT,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	case drop_list:
+		return CreateWindow(WC_COMBOBOX, nullptr, WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);;
+	case progress_bar:
+		return CreateWindowEx(0, PROGRESS_CLASS, nullptr, WS_CHILD | WS_VISIBLE,
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	}
+	return nullptr;
 }
 
 void onConfFileSelected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle)
