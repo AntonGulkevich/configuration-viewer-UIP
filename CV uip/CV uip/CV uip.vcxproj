@@ -29,9 +29,6 @@
     <ClInclude Include="StrategyDeployment .h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="win32DLib.dll" />
-  </ItemGroup>
-  <ItemGroup>
     <Library Include="ftd2xx.lib" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

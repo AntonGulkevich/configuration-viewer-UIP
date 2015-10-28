@@ -94,7 +94,7 @@ bool StrategyDeployment::saveFile(const std::string fileName, const std::list<st
 		logList.push_back("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
-	for (auto it = logList.begin(); it != logList.end(); ++it)
+	for (auto it = listToSave.begin(); it != listToSave.end(); ++it)
 	{
 		fwrite((*it).c_str(), sizeof(char), (*it).size(), file);
 	}
@@ -250,15 +250,23 @@ bool StrategyDeployment::convert()
 bool StrategyDeployment::validateCurrentConfiguration()
 {
 	auto hInstDll = LoadLibrary(_T("win32dlib.dll"));
-	hInstDll!=nullptr ? logList.push_back("Dll loaded successfully.") : logList.push_back("Error: Failed to load dll\n");
+	DWORD error = GetLastError();
+	if (hInstDll != nullptr) {
+		logList.push_back("Dll loaded successfully.");
+	}
+	else {
+		logList.push_back("Error: Failed to load dll\n");
+		return false;
+	}
 	auto pDllGetFactory = reinterpret_cast<DLLGETFACTORY>(GetProcAddress(hInstDll, "returnFactory"));
 	auto pMyFactory = (pDllGetFactory)();
-	if (pMyFactory == nullptr) return 0;
+	if (pMyFactory == nullptr) 
+		return false;
 	auto drIoManager = static_cast<DriversIOManager *>(pMyFactory->CreateDriversIoManager());
 	auto drManager = static_cast<DriverManager *>(pMyFactory->CreateDriverManager());
 	drManager->setI2cCommodFileName(commodFileName);
 	auto testWorkManager = static_cast<WorkManager *>(pMyFactory->CreateWorkManager(drIoManager, drManager));
-	logList.push_back("Configuration file validation: " + drManager->getI2cCommodFileName());
+	logList.push_back("Configuration file validation: " + commodFileName);
 	auto validConfig = testWorkManager->ValidateConfig();
 
 	delete drIoManager;

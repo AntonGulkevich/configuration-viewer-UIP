@@ -1,6 +1,8 @@
 ﻿#ifndef STRATEGYDEPLOYMENT_H
 #define STRATEGYDEPLOYMENT_H
 
+#define EMULATION
+
 #include <string>
 #include <list>
 #include <windows.h>
