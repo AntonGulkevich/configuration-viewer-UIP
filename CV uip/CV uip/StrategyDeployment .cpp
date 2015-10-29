@@ -250,7 +250,6 @@ bool StrategyDeployment::convert()
 bool StrategyDeployment::validateCurrentConfiguration()
 {
 	auto hInstDll = LoadLibrary(_T("win32dlib.dll"));
-	DWORD error = GetLastError();
 	if (hInstDll != nullptr) {
 		logList.push_back("Dll loaded successfully.");
 	}
@@ -262,19 +261,19 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	auto pMyFactory = (pDllGetFactory)();
 	if (pMyFactory == nullptr) 
 		return false;
-	auto drIoManager = static_cast<DriversIOManager *>(pMyFactory->CreateDriversIoManager());
-	auto drManager = static_cast<DriverManager *>(pMyFactory->CreateDriverManager());
+	auto drIoManager = pMyFactory->CreateDriversIoManager();
+	auto drManager = pMyFactory->CreateDriverManager();
 	drManager->setI2cCommodFileName(commodFileName);
-	auto testWorkManager = static_cast<WorkManager *>(pMyFactory->CreateWorkManager(drIoManager, drManager));
+	auto testWorkManager = pMyFactory->CreateWorkManager(drIoManager, drManager);
+	testWorkManager->initCommod();
 	logList.push_back("Configuration file validation: " + commodFileName);
 	auto validConfig = testWorkManager->ValidateConfig();
-
 	delete drIoManager;
 	delete drManager;
 	delete testWorkManager;
 	//better to free library, be aware of memory leak. (automatically free library when there is no process using it)
-	FreeLibrary(hInstDll);
-	logList.push_back("Library successfully freed.");
+	if (FreeLibrary(hInstDll))
+		logList.push_back("Library successfully freed.");
 	return validConfig;
 }
 
@@ -382,9 +381,14 @@ unsigned int StrategyDeployment::getDevicesCount()
 		return ftdiDeviceCount;
 	}
 	else {
-		logList.push_back("Error: FT_ListDevices failed!");
+		//logList.push_back("Error: FT_ListDevices failed!");
 		return -1;
 	}
+}
+
+void StrategyDeployment::getSerialNumber(int devideNum, char* serialNumber)
+{
+	 FT_ListDevices(reinterpret_cast<PVOID>(devideNum), serialNumber, FT_LIST_BY_INDEX | FT_OPEN_BY_SERIAL_NUMBER);
 }
 
 FT_HANDLE StrategyDeployment::getFirstDeviceHandle()

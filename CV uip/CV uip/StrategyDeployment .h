@@ -123,7 +123,8 @@ public:
 	//ft_device
 	bool loadConfiguration();
 	void rebootDevice();
-	unsigned int getDevicesCount();
+	static unsigned int getDevicesCount();
+	static void getSerialNumber(int devideNum, char* serialNumber);
 	FT_HANDLE getFirstDeviceHandle();
 	FT_HANDLE getDeviceByDescription(const std::string description);
 	FT_STATUS sendPacket(FT_HANDLE ftHandle, std::vector<unsigned char> &buffer, DWORD bytesToSend, LPDWORD lpdwBytesWritten);

@@ -16,6 +16,7 @@
 #endif
 #endif
 
+#define MAXPATH 1000
 
 /*global vars*/
 static TCHAR szWindowClass[] = _T("win32app");
@@ -52,8 +53,13 @@ HWND hProgBar;
 bool parseEnabled = false;
 bool compressEnabled = false;
 bool saveLog = false;
+int currentDeviceNumber = -1;
 /*end of logic vars*/
-
+enum messageType
+{
+	errorMessage,
+	warningMessage,
+};
 enum  controlls
 {
 	convertCB_ = 1,
@@ -92,8 +98,11 @@ void initControls(HWND hWnd);
 HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine);
 HWND createWidget(int type, wchar_t * caption, HWND hWnd, int x, int y, int w, int h, int index);
 bool isFileExists(PCHAR name);
+bool isFileExists(const std::string &fileName);
 void enableCompressorGroup(bool state);
-/*end of operations*/
+void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type);
+void incrProgressBar(HWND hWnd, int step);
+/*end of operations*/ 
 
 /*events*/
 void onConfFileSelected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
@@ -102,6 +111,8 @@ void onComvertCBClicked();
 void onLoadCMClicked(HWND hWnd);
 void onCompressCBClicked();
 void onSaveLogCBClicked();
+void onRefreshDevicesPBClicked(HWND hWnd);
+void onDeviceChanged();
 /*end of events*/
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -150,13 +161,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	//case WM_SETFONT:
 	//	SendMessage(hWnd, WM_SETFONT, reinterpret_cast<WPARAM >(hFont), TRUE);
+
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
-		case loadCMPB_: 
-			/*SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
-			SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 100, 0);
-			SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);*/
+		case devicesDL_:
+			onDeviceChanged();
+			break;
+		case loadCMPB_:
 			onLoadCMClicked(hWnd);
 			break;
 		case openCMPB_:
@@ -173,6 +185,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case saveLogCB_:
 			onSaveLogCBClicked();
+			break;
+		case refreshDevicesPB_:
+			onRefreshDevicesPBClicked(hWnd);
 			break;
 		}
 		break;
@@ -233,6 +248,7 @@ void initControls(HWND hWnd)
 
 	/*drop lists*/
 	devicesDL = createWidget(drop_list, nullptr, hWnd, 120, 120, 320, 200, devicesDL_);
+	onRefreshDevicesPBClicked(hWnd);
 	/*end of drop lists*/
 
 	/*images and icons*/
@@ -327,17 +343,43 @@ void enableCompressorGroup(bool state)
 	EnableWindow(openZipPB, state);
 }
 
+void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type)
+{
+	switch(type)
+	{
+	case errorMessage:
+		MessageBox(hWnd, text, title , MB_OK | MB_ICONERROR);
+		break;
+	case warningMessage:
+		MessageBox(hWnd, text, title, MB_OK | MB_ICONEXCLAMATION);
+		break;
+	}
+}
+
+void incrProgressBar(HWND hWnd, int step)
+{
+	SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
+	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, step, 0);
+	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);
+}
+
 void onLoadCMClicked(HWND hWnd)
 {
-	char * szFileName = new char[1000];
-	GetWindowTextA(confWayLE, szFileName, 1000);
-	std::string pathToCommodFile(szFileName);
-	delete[] szFileName;
+	if (currentDeviceNumber == 0)
+	{
+		showMessageBox(hWnd, L"Не выбрано устройство!", L"Загрузка конфигурации", errorMessage);
+		return;
+	}
+	char * szFileName = new char[MAXPATH];
+	GetWindowTextA(confWayLE, szFileName, MAXPATH);
+	std::string pathToCommodFile(szFileName);	
 
-	char * sevenZipFileName = new char[1000];
-	GetWindowTextA(zipWayLE, sevenZipFileName, 1000);
+	char * sevenZipFileName = new char[MAXPATH];
+	GetWindowTextA(zipWayLE, sevenZipFileName, MAXPATH);
 	std::string pathTo7Zip(sevenZipFileName);
-	delete[] sevenZipFileName;
+	
+	if (!isFileExists(pathToCommodFile))		
+		return showMessageBox(hWnd, L"Не найден файл конфигурации", L"Загрузка конфигурации", errorMessage);
 
 	StrategyDeployment  *manager = new StrategyDeployment(pathToCommodFile);
 	manager->setZip(compressEnabled);
@@ -345,19 +387,22 @@ void onLoadCMClicked(HWND hWnd)
 	manager->setCreateCompressedFile(compressEnabled);
 	manager->setParse(parseEnabled);
 	manager->setzipCompressionLevel(7);
+	incrProgressBar(hWnd, 10);
+	bool isOK = manager->convert();
+	incrProgressBar(hWnd, 20);
+	isOK = manager->validateCurrentConfiguration();	
+	incrProgressBar(hWnd, 20);
 
-	manager->convert();
-	SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
-	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 20, 0);
-	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);
-	manager->validateCurrentConfiguration();
-	//SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
-	//SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 100, 0);
-	//SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);
+
+	if (!isOK)
+		return showMessageBox(hWnd, L"Конфигурация не загружена.", L"Загрузка конфигурации", errorMessage);
+	showMessageBox(hWnd, L"Конфигурация загружена успешно.", L"Загрузка конфигурации", warningMessage);
 
 	if (saveLog)
 		manager->saveLog();
 
+	delete[] szFileName;
+	delete[] sevenZipFileName;
 	delete manager;
 }
 
@@ -371,7 +416,46 @@ void onSaveLogCBClicked()
 	saveLog = (SendMessage(saveLogCB, BM_GETCHECK, 0, 0) == BST_CHECKED);
 }
 
+void onRefreshDevicesPBClicked(HWND hWnd)
+{
+	SendMessage(devicesDL, CB_RESETCONTENT, 0, 0);
+	/*SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
+	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 50, 0);
+	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);*/
+	unsigned int devicesCount = StrategyDeployment::getDevicesCount();
+	if (devicesCount <= 0)
+	{
+		showMessageBox(hWnd, L"Не обнаружено FTDI устройств.", L"Обновить список устройств", warningMessage);
+		currentDeviceNumber = -1;
+		return;
+	}
+	currentDeviceNumber = 0;
+
+	for (int i = 0; i < devicesCount; ++i)
+	{
+		char *buffer = new char[64];
+		StrategyDeployment::getSerialNumber(i, buffer);
+
+		SendMessageA(devicesDL, CB_ADDSTRING, static_cast<WPARAM>(0), reinterpret_cast<LPARAM>(buffer));
+		SendMessage(devicesDL, CB_SETCURSEL, static_cast<WPARAM>(0), 0);
+
+		delete[] buffer;
+	}
+
+}
+
+void onDeviceChanged()
+{
+	currentDeviceNumber = SendMessage(devicesDL, CB_GETCURSEL, 0, 0);
+}
+
 bool isFileExists(PCHAR name) {
 	struct stat buffer;
 	return (stat(name, &buffer) == 0);
+}
+
+bool isFileExists(const std::string& fileName)
+{
+	struct stat buffer;
+	return (stat(fileName.c_str(), &buffer) == 0);
 }
