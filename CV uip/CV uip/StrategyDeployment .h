@@ -133,7 +133,7 @@ public:
 	
 	//ft_device
 	void setFTDIdevice(int number);
-	void setFTDIDevice(char * descr);
+	void setFTDIDevice(char * serialNumber);
 	bool loadConfiguration();
 	bool loadConfiguration(FT_HANDLE ft_handle);
 	bool loadConfiguration(unsigned int deviceNumber);

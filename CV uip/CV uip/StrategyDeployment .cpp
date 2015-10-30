@@ -167,7 +167,7 @@ bool StrategyDeployment::convert()
 	}
 	dataString = "";
 	stringList.push_back(token);
-	stringList.pop_front();//the firts part is always zero
+	//stringList.pop_front();//the firts part is always zero
 	auto address = HEADER_SIZE;
 	std::list <Fat> headerList;
 	for (auto it = stringList.begin(); it != stringList.end(); ++it)
@@ -270,9 +270,8 @@ bool StrategyDeployment::convert()
 bool StrategyDeployment::validateCurrentConfiguration()
 {
 	auto hInstDll = LoadLibrary(_T("win32dlib.dll"));
-	if (hInstDll != nullptr) {
+	if (hInstDll != nullptr)
 		logList.push_back("Dll loaded successfully.");
-	}
 	else {
 		logList.push_back("Error: Failed to load dll\n");
 		return false;
@@ -283,9 +282,7 @@ bool StrategyDeployment::validateCurrentConfiguration()
 		return false;
 	auto drIoManager = pMyFactory->CreateDriversIoManager();
 	auto drManager = pMyFactory->CreateDriverManager();
-
 	std::string currentCommodFile = parseEnabled ? commodFileName + "_a" : commodFileName;
-
 	drManager->setI2cCommodFileName(currentCommodFile);
 	auto testWorkManager = pMyFactory->CreateWorkManager(drIoManager, drManager);
 	testWorkManager->initCommod();
@@ -294,9 +291,12 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	delete drIoManager;
 	delete drManager;
 	delete testWorkManager;
-	//better to free library, be aware of memory leak. (automatically free library when there is no process using it)
 	if (FreeLibrary(hInstDll))
 		logList.push_back("Library successfully freed.");
+	if (!validConfig) {
+		logList.push_back("Invalid configuration.");
+		return false;
+	}	
 	return validConfig;
 }
 
@@ -344,9 +344,18 @@ void StrategyDeployment::setFTDIdevice(int number)
 	currentFTDIDevice = number;
 }
 
-void StrategyDeployment::setFTDIDevice(char* descr)
+void StrategyDeployment::setFTDIDevice(char* serialNumber)
 {
-	
+	int devCount = getDevicesCount();
+	for (int i = 0; i < devCount; ++i)
+	{
+		char * buffer = new char[64];
+		getDeviceDesrc(i, buffer);
+		if (strcmp(serialNumber, buffer))
+			setFTDIdevice(i);
+		delete[] buffer;
+		return;
+	}
 }
 
 bool StrategyDeployment::loadConfiguration()
@@ -468,9 +477,7 @@ FT_HANDLE StrategyDeployment::getDeviceByDescription(const std::string descripti
 		return nullptr;
 	}
 	FT_HANDLE ftHandle;
-	FT_STATUS ftStatus;
-
-	ftStatus = FT_OpenEx(PVOID(description.c_str()), FT_OPEN_BY_DESCRIPTION, &ftHandle);
+	auto ftStatus = FT_OpenEx(PVOID(description.c_str()), FT_OPEN_BY_DESCRIPTION, &ftHandle);
 	if (ftStatus == FT_OK) {
 		// FT_Open OK, use ftHandle to access device
 		logList.push_back("The device: "+ description +" opened.");

@@ -370,7 +370,7 @@ void onLoadCMClicked(HWND hWnd)
 	incrProgressBar(hWnd, 20);
 	isOK = manager->validateCurrentConfiguration();	
 	incrProgressBar(hWnd, 20);
-	isOK = manager->loadConfiguration(currentDeviceNumber);
+	//isOK = manager->loadConfiguration(currentDeviceNumber);
 
 	if (saveLog)
 		manager->saveLog();
