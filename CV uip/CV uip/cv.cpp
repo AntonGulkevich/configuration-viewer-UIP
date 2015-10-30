@@ -138,30 +138,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
-	//case WM_PAINT:
-		//PAINTSTRUCT 	ps;
-		//HDC 			hdc;
-		//BITMAP 			bitmap;
-		//HDC 			hdcMem;
-		//HGDIOBJ 		oldBitmap;
-
-		//hdc = BeginPaint(hWnd, &ps);
-
-		//hdcMem = CreateCompatibleDC(hdc);
-		//oldBitmap = SelectObject(hdcMem, hBitmap);
-
-		//GetObject(hBitmap, sizeof(bitmap), &bitmap);
-		//BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
-
-		//SelectObject(hdcMem, oldBitmap);
-		//DeleteDC(hdcMem);
-
-		//EndPaint(hWnd, &ps);
-		//break;
-
-	//case WM_SETFONT:
-	//	SendMessage(hWnd, WM_SETFONT, reinterpret_cast<WPARAM >(hFont), TRUE);
-
 	case WM_COMMAND:
 		switch (LOWORD(wParam))
 		{
@@ -365,7 +341,7 @@ void incrProgressBar(HWND hWnd, int step)
 
 void onLoadCMClicked(HWND hWnd)
 {
-	if (currentDeviceNumber == 0)
+	if (currentDeviceNumber < 0)
 	{
 		showMessageBox(hWnd, L"Не выбрано устройство!", L"Загрузка конфигурации", errorMessage);
 		return;
@@ -388,18 +364,20 @@ void onLoadCMClicked(HWND hWnd)
 	manager->setParse(parseEnabled);
 	manager->setzipCompressionLevel(7);
 	incrProgressBar(hWnd, 10);
-	bool isOK = manager->convert();
+	bool isOK;
+	if (parseEnabled)
+		isOK = manager->convert();
 	incrProgressBar(hWnd, 20);
 	isOK = manager->validateCurrentConfiguration();	
 	incrProgressBar(hWnd, 20);
+	isOK = manager->loadConfiguration(currentDeviceNumber);
 
+	if (saveLog)
+		manager->saveLog();
 
 	if (!isOK)
 		return showMessageBox(hWnd, L"Конфигурация не загружена.", L"Загрузка конфигурации", errorMessage);
 	showMessageBox(hWnd, L"Конфигурация загружена успешно.", L"Загрузка конфигурации", warningMessage);
-
-	if (saveLog)
-		manager->saveLog();
 
 	delete[] szFileName;
 	delete[] sevenZipFileName;
@@ -419,9 +397,6 @@ void onSaveLogCBClicked()
 void onRefreshDevicesPBClicked(HWND hWnd)
 {
 	SendMessage(devicesDL, CB_RESETCONTENT, 0, 0);
-	/*SendMessage(GetDlgItem(hWnd, hProgBar_), PBS_SMOOTH, 0, 0);
-	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_SETSTEP, 50, 0);
-	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);*/
 	unsigned int devicesCount = StrategyDeployment::getDevicesCount();
 	if (devicesCount <= 0)
 	{
@@ -434,11 +409,15 @@ void onRefreshDevicesPBClicked(HWND hWnd)
 	for (int i = 0; i < devicesCount; ++i)
 	{
 		char *buffer = new char[64];
-		StrategyDeployment::getSerialNumber(i, buffer);
-
+		char *serialNumber = new char[64];
+		StrategyDeployment::getSerialNumber(i, serialNumber);
+		StrategyDeployment::getDeviceDesrc(i, buffer);
+		strcat_s(buffer, 64, " Serial num: ");
+		strcat_s(buffer, 64, serialNumber);
 		SendMessageA(devicesDL, CB_ADDSTRING, static_cast<WPARAM>(0), reinterpret_cast<LPARAM>(buffer));
 		SendMessage(devicesDL, CB_SETCURSEL, static_cast<WPARAM>(0), 0);
 
+		delete[] serialNumber;
 		delete[] buffer;
 	}
 

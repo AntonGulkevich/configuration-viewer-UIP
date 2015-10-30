@@ -75,6 +75,29 @@ bool StrategyDeployment::saveFile(const std::string fileName, unsigned char *buf
 	return true;
 }
 
+bool StrategyDeployment::saveFile(const std::string fileName, const std::string& buffer, long size, const std::string& param)
+{
+
+	char *cstr = new char[buffer.length() + 1];
+	strcpy_s(cstr, buffer.length() + 1,  buffer.c_str());
+
+	FILE *file;
+	if (fopen_s(&file, fileName.c_str(), param.c_str()) != 0)
+	{
+		logList.push_back("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		return false;
+	}
+	if (!fwrite(cstr, sizeof(char), size, file))
+	{
+		logList.push_back("Unable to saveFile: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		return false;
+	}
+	fclose(file);
+	delete[] cstr;
+	return true;
+
+}
+
 bool StrategyDeployment::saveFile(const std::string fileName,  std::vector<unsigned char> vecToSave)
 {
 	int size = vecToSave.size();
@@ -149,7 +172,7 @@ bool StrategyDeployment::convert()
 	std::list <Fat> headerList;
 	for (auto it = stringList.begin(); it != stringList.end(); ++it)
 	{
-		auto temp = DELIMITER + *it;
+		auto temp = delimiter + *it;
 		temp = temp.erase((temp.find("\r\nEND\r\n") + 7), temp.size());
 		temp = boost::regex_replace(temp, boost::regex("[ ]{0,}(=)[ ]{0,}"), std::string("="));
 		temp = boost::regex_replace(temp, boost::regex("[ ]{0,}(==)[ ]{0,}"), std::string("=="));
@@ -218,7 +241,6 @@ bool StrategyDeployment::convert()
 	}
 	/*create new header for converted file*/
 	std::vector<BYTE> headerNew;
-	auto start = 0;
 	for (auto it = headerList.begin(); it != headerList.end(); ++it)
 	{
 		headerNew.push_back(static_cast<BYTE>(((*it).address & (0xFF << 8)) >> 8));
@@ -232,9 +254,7 @@ bool StrategyDeployment::convert()
 	//done creating new header
 
 	bool isOk = saveFile(commodFileName + "_a", headerNew);
-	std::string resultStr;
-	resultStr.append(dataString);
-	isOk=isOk&saveFile(commodFileName + "_a", reinterpret_cast<unsigned char*>(_strdup(resultStr.c_str())), resultStr.size(), "a+b");
+	isOk=saveFile(commodFileName + "_a", dataString, dataString.size(), "a+b");
 
 	isOk ? logList.push_back("File: " + commodFileName + " sucsessfully converted to\nFile: " + commodFileName + "_a.") :
 		logList.push_back("Error: can not convert file " + commodFileName);
@@ -263,10 +283,13 @@ bool StrategyDeployment::validateCurrentConfiguration()
 		return false;
 	auto drIoManager = pMyFactory->CreateDriversIoManager();
 	auto drManager = pMyFactory->CreateDriverManager();
-	drManager->setI2cCommodFileName(commodFileName);
+
+	std::string currentCommodFile = parseEnabled ? commodFileName + "_a" : commodFileName;
+
+	drManager->setI2cCommodFileName(currentCommodFile);
 	auto testWorkManager = pMyFactory->CreateWorkManager(drIoManager, drManager);
 	testWorkManager->initCommod();
-	logList.push_back("Configuration file validation: " + commodFileName);
+	logList.push_back("Configuration file validation: " + currentCommodFile);
 	auto validConfig = testWorkManager->ValidateConfig();
 	delete drIoManager;
 	delete drManager;
@@ -316,20 +339,38 @@ void StrategyDeployment::addShortToVect(short var, std::vector<unsigned char>& v
 	vector.push_back(static_cast<unsigned char>((var >> 8) & 0xFF));
 }
 
+void StrategyDeployment::setFTDIdevice(int number)
+{
+	currentFTDIDevice = number;
+}
+
+void StrategyDeployment::setFTDIDevice(char* descr)
+{
+	
+}
+
 bool StrategyDeployment::loadConfiguration()
 {
-	//FT_DEVICE_LIST_INFO_NODE deviceInfo;
 	if (getDevicesCount() <= 0)	{
 		logList.push_back("No FTDI defices found!");
 		return false;
 	}
 	logList.push_back("Connecting to the first FTDI device");
 	FT_HANDLE ft_handle = getFirstDeviceHandle(); //open device
+	return loadConfiguration(ft_handle);
+}
+
+bool StrategyDeployment::loadConfiguration(FT_HANDLE ft_handle)
+{
 	if (ft_handle == nullptr)
 		return false;
+	if (sendSimpleCommand(ft_handle, Commands::DiagnosticDisable) != FT_OK) {
+		logList.push_back("Error: cant send command!");
+		return false;
+	}
 	if (!setFTDISettings(ft_handle))
 		return false;
-	if (sendCommand(ft_handle, Commands::LoadCM) != FT_OK){
+	if (sendCommand(ft_handle, Commands::LoadCM) != FT_OK) {
 		logList.push_back("Error: cant send command!");
 		return false;
 	}
@@ -339,7 +380,7 @@ bool StrategyDeployment::loadConfiguration()
 		logList.push_back("Error: configuration can not be load.");
 		return false;
 	}
-	logList.push_back("Configuration loaded to the first FTDI device.");
+	logList.push_back("Configuration loaded to the FTDI device.");
 	/*end of reply*/
 
 	/*reboot*/
@@ -351,6 +392,11 @@ bool StrategyDeployment::loadConfiguration()
 	/*end of reboot*/
 	FT_Close(ft_handle);
 	return true;
+}
+
+bool StrategyDeployment::loadConfiguration(unsigned int deviceNumber)
+{
+	return loadConfiguration(getDeviceHandle(deviceNumber));
 }
 
 void StrategyDeployment::rebootDevice()
@@ -365,7 +411,7 @@ void StrategyDeployment::rebootDevice()
 		return;
 	if (!setFTDISettings(ft_handle))
 		return;
-	if (sendCommand(ft_handle, Commands::Reboot) != FT_OK) {
+	if (sendSimpleCommand(ft_handle, Commands::Reboot) != FT_OK) {
 		logList.push_back("Error: cant send command!");
 		return;
 	}
@@ -391,23 +437,27 @@ void StrategyDeployment::getSerialNumber(int devideNum, char* serialNumber)
 	 FT_ListDevices(reinterpret_cast<PVOID>(devideNum), serialNumber, FT_LIST_BY_INDEX | FT_OPEN_BY_SERIAL_NUMBER);
 }
 
+void StrategyDeployment::getDeviceDesrc(int deviceNum, char* descr)
+{
+	
+	FT_DEVICE_LIST_INFO_NODE *devInfo;
+	DWORD numDevs;
+	FT_STATUS ftStatus = FT_CreateDeviceInfoList(&numDevs);
+	if (!ftStatus == FT_OK) {
+		return;
+	}
+	if (numDevs > 0) {
+		devInfo = static_cast<FT_DEVICE_LIST_INFO_NODE*>(malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*numDevs));
+		ftStatus = FT_GetDeviceInfoList(devInfo, &numDevs);
+		if (ftStatus == FT_OK) {
+			strcpy_s(descr, sizeof(devInfo[deviceNum].Description), devInfo[deviceNum].Description);
+		}
+	}
+}
+
 FT_HANDLE StrategyDeployment::getFirstDeviceHandle()
 {
-	if (getDevicesCount() == 0) {
-		logList.push_back("No devices have been found.");
-		return nullptr;
-	}
-	FT_HANDLE ftHandle;
-	if (FT_Open(0, &ftHandle) == FT_OK) {
-		// FT_Open OK, use ftHandle to access device
-		logList.push_back("The first device opened.");
-		return ftHandle;
-	}
-	else {
-		// FT_Open failed
-		logList.push_back("Error: the first device can not be opened!");
-		return nullptr;
-	}
+	return getDeviceHandle(0);
 
 }
 
@@ -439,6 +489,25 @@ FT_STATUS StrategyDeployment::sendPacket(FT_HANDLE ftHandle, std::vector<unsigne
 	rawBuffer = reinterpret_cast<unsigned char*>(buffer.data());
 	bool res = FT_Write(ftHandle, rawBuffer, bytesToSend, lpdwBytesWritten);
 	return res;
+}
+
+FT_HANDLE StrategyDeployment::getDeviceHandle(unsigned int DeviceNumber)
+{
+	if (getDevicesCount() == 0) {
+		logList.push_back("No devices have been found.");
+		return nullptr;
+	}
+	FT_HANDLE ftHandle;
+	if (FT_Open(DeviceNumber, &ftHandle) == FT_OK) {
+		// FT_Open OK, use ftHandle to access device
+		logList.push_back("Device opened.");
+		return ftHandle;
+	}
+	else {
+		// FT_Open failed
+		logList.push_back("Error: the device can not be opened!");
+		return nullptr;
+	}
 }
 
 FT_STATUS StrategyDeployment::sendCommand(FT_HANDLE ftHandle, Commands command)
@@ -557,6 +626,24 @@ FT_STATUS StrategyDeployment::reboot(FT_HANDLE ft_handle)
 	return sendPacket(ft_handle, vecData, vecData.size(), &bytesWritten);
 }
 
+FT_STATUS StrategyDeployment::sendSimpleCommand(FT_HANDLE ft_handle, Commands command)
+{
+	short size = 4 * (3 + 1) - 1;
+	std::vector <unsigned char> vecData;
+	addIntToVect(STARTFLAG, vecData);
+	addShortToVect(size, vecData);
+	addIntToVect(COMMANDFLAG, vecData);
+	addIntToVect(1, vecData);
+
+	vecData.push_back(0x5D);
+	vecData.push_back(command);
+	vecData.push_back(0x00);
+	vecData.push_back(0xE4);
+
+	addIntToVect(ENDFLAG, vecData);
+	unsigned long bytesWritten;
+	return sendPacket(ft_handle, vecData, vecData.size(), &bytesWritten);
+}
 FT_STATUS StrategyDeployment::versionRequest()
 {
 	return 0;
@@ -669,3 +756,5 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
 		start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
 	}
 }
+
+

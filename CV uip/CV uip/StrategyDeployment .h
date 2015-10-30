@@ -47,6 +47,7 @@ private:
 	bool saveToSameFolder;
 	bool createCompressedFile;
 	short zipCompressionLevel;//1-9
+	
 
 	FILE* commodFile;
 	long commodFileSize;
@@ -57,25 +58,34 @@ private:
 		unsigned int size;
 	};
 	//ft_device
-	std::list <FT_DEVICE_LIST_INFO_NODE> deviceList;
-
+	unsigned int currentFTDIDevice;
+	//enum Commands
+	//{
+	//	None = 0,
+	//	VersionRequest = 1 << 0,
+	//	LoadFW = 1 << 1,
+	//	LoadCM = 1 << 2,
+	//	SaveCM = 1 << 3,
+	//	DiagnosticEnable = 1 << 4,
+	//	DiagnosticDisable = 1 << 5
+	//}
 public:
 	enum Commands
 	{
-		VersionRequest = 1,
-		LoadFW = 2,
-		LoadCM = 3,  // Загрузка в КМ
-		SaveCM = 4,  // Выгрузка КМ в ПК
-		DiagnosticEnable = 5, // Включить диагностику
-		DiagnosticDisable = 6, // Выключить диагностику
-		Configuration = 7, // Запрос конфигурации
-		GetChannelSettings = 8, // Запрос настроек каналов
-		GetFails = 9, // Запрос отказов
-		GetDynamicInfo = 10, // Запрос динамической информации
-		Reboot = 11, // Перезагрузка
-		StartCalibrate = 12, // Откалибровать входы
-		GetCalibrates = 13, // Получить текущие калибровки
-		SaveSettings = 14, // Сохранить пользовательские настройки
+		VersionRequest = 0x01,
+		LoadFW = 0x02,
+		LoadCM = 0x03,  // Загрузка в КМ    /*error*/
+		SaveCM = 0x04,  // Выгрузка КМ в ПК
+		DiagnosticEnable = 0x05, // Включить диагностику
+		DiagnosticDisable = 0x06, // Выключить диагностику
+		Configuration = 0x07, // Запрос конфигурации
+		GetChannelSettings = 0x08, // Запрос настроек каналов
+		GetFails = 0x09, // Запрос отказов
+		GetDynamicInfo = 0x0A, // Запрос динамической информации
+		Reboot = 0x0B, // Перезагрузка
+		StartCalibrate = 0x0C, // Откалибровать входы
+		GetCalibrates = 0x0D, // Получить текущие калибровки
+		SaveSettings = 0x0E, // Сохранить пользовательские настройки
 	};
 	explicit StrategyDeployment(const std::string commodFileName_);//constructor
 	//get
@@ -102,6 +112,7 @@ public:
 
 	//operations with files
 	bool saveFile(const std::string fileName, unsigned char *buffer, long size, const std::string &param);
+	bool saveFile(const std::string fileName, const std::string &buffer, long size, const std::string &param);
 	bool saveFile(const std::string fileName, const std::vector<unsigned char> vecToSave);
 	bool saveFile(const std::string fileName, const std::list<std::string> listToSave);
 	bool openfile(const std::string fileName);
@@ -121,19 +132,26 @@ public:
 	void addShortToVect(short var, std::vector <unsigned char> &vector);
 	
 	//ft_device
+	void setFTDIdevice(int number);
+	void setFTDIDevice(char * descr);
 	bool loadConfiguration();
+	bool loadConfiguration(FT_HANDLE ft_handle);
+	bool loadConfiguration(unsigned int deviceNumber);
 	void rebootDevice();
 	static unsigned int getDevicesCount();
 	static void getSerialNumber(int devideNum, char* serialNumber);
+	static void getDeviceDesrc(int deviceNum, char * descr);
 	FT_HANDLE getFirstDeviceHandle();
 	FT_HANDLE getDeviceByDescription(const std::string description);
 	FT_STATUS sendPacket(FT_HANDLE ftHandle, std::vector<unsigned char> &buffer, DWORD bytesToSend, LPDWORD lpdwBytesWritten);
+	FT_HANDLE getDeviceHandle(unsigned int DeviceNumber);
 	FT_STATUS sendCommand(FT_HANDLE ftHandle, Commands command);
 	void createPacket(std::vector <unsigned char> &buffer);
 	int readResponse(FT_HANDLE ft_handle, unsigned long bytesToRead);
 	FT_STATUS closeFTDI(FT_HANDLE ftHandle);
 	FT_STATUS loadCM(FT_HANDLE ft_handle);
 	FT_STATUS reboot(FT_HANDLE ft_handle); 
+	FT_STATUS sendSimpleCommand(FT_HANDLE ft_handle, Commands command);
 	FT_STATUS versionRequest();
 	FT_STATUS loadFW();	
 	FT_STATUS saveCM();
