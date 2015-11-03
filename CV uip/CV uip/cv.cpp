@@ -16,6 +16,7 @@
 #endif
 #endif
 
+#pragma comment (lib, "Comctl32.lib")
 #define MAXPATH 1000
 
 /*global vars*/
@@ -32,7 +33,8 @@ HWND saveLogCB;
 /*static label*/
 HWND configSL;
 HWND compressorSL;
-HWND deviceSL;
+HWND deviceSL; 
+HWND stateSL;
 /*push button*/
 HWND openCMPB;
 HWND openZipPB;
@@ -62,21 +64,22 @@ enum messageType
 };
 enum  controlls
 {
-	convertCB_ = 1,
-	compressCB_ = 2,
-	saveLogCB_ = 3,
-	configSL_ = 4 ,
-	compressorSL_ = 5,
-	deviceSL_ = 6,
-	openCMPB_ = 7,
-	openZipPB_ = 8,
-	loadCMPB_ = 9,
-	refreshDevicesPB_ = 10,
-	confWayLE_ = 11,
-	zipWayLE_ = 12,
-	devicesDL_ = 13,
-	hBitmap_ = 14,
-	hProgBar_ = 15,
+	convertCB_,
+	compressCB_,
+	saveLogCB_,
+	configSL_,
+	compressorSL_,
+	deviceSL_,
+	openCMPB_,
+	openZipPB_,
+	loadCMPB_,
+	refreshDevicesPB_,
+	confWayLE_,
+	zipWayLE_,
+	devicesDL_,
+	hBitmap_,
+	hProgBar_,
+	stateSL_ 
 
 };
 
@@ -87,7 +90,8 @@ enum typeControlls
 	static_label,
 	line_edit,
 	drop_list,
-	progress_bar
+	progress_bar,
+	status_bar
 };
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -102,6 +106,7 @@ bool isFileExists(const std::string &fileName);
 void enableCompressorGroup(bool state);
 void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type);
 void incrProgressBar(HWND hWnd, int step);
+void setStatusBarText(LPCWSTR text);
 /*end of operations*/ 
 
 /*events*/
@@ -207,6 +212,8 @@ void initControls(HWND hWnd)
 	configSL = createWidget(static_label, _T("Конфигурация:"), hWnd, 10, 23, 100, 20, configSL_);
 	compressorSL = createWidget(static_label, _T("Архиватор:"), hWnd, 10, 56, 100, 20, compressorSL_);
 	deviceSL = createWidget(static_label, _T("Устройство:"), hWnd, 10, 123, 100, 20, deviceSL_);
+	stateSL = createWidget(status_bar, _T("Все готово к работе!"), hWnd, 10, 177, 470, 20, stateSL_);
+	SetWindowText(stateSL, _T("Все готово к работе!"));
 	/*end of static labels*/
 
 	/*line edits*/
@@ -234,7 +241,6 @@ void initControls(HWND hWnd)
 	/*progress bar*/
 	hProgBar = createWidget(progress_bar, nullptr, hWnd, 10, 157, 430, 20, hProgBar_);
 	/*end of progress bar*/
-
 	enableCompressorGroup(false);
 }
 
@@ -254,18 +260,19 @@ HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	wcex.lpszClassName = szWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_APPLICATION));
 
+
 	if (!RegisterClassEx(&wcex))
 	{
-		MessageBox(nullptr,	_T("Call to RegisterClassEx failed!"),szTitle,	NULL);
+		setStatusBarText(L"Call to RegisterClassEx failed!");
 		return nullptr;
 	}
 	hInst = hInstance;
 	auto hWnd = CreateWindow(szWindowClass, szTitle,
 		(WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX),
-		CW_USEDEFAULT, CW_USEDEFAULT, 590, 230, NULL, NULL, hInstance, NULL);
+		CW_USEDEFAULT, CW_USEDEFAULT, 590, 255, NULL, NULL, hInstance, NULL);
 	if (!hWnd)
 	{
-		MessageBox(nullptr,	_T("Call to CreateWindow failed!"),	szTitle,NULL);
+		setStatusBarText(L"Call to CreateWindow failed!");
 		return nullptr;
 	}
 	return hWnd;
@@ -292,6 +299,10 @@ HWND createWidget(int type, wchar_t* caption, HWND hWnd, int x, int y, int w, in
 	case progress_bar:
 		return CreateWindowEx(NULL, PROGRESS_CLASS, nullptr, WS_CHILD | WS_VISIBLE,
 			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+	case status_bar:
+		return CreateWindowEx(NULL, STATUSCLASSNAME, nullptr,WS_CHILD | WS_VISIBLE, 
+			x, y, w, h, hWnd, reinterpret_cast<HMENU>(index), hInst, nullptr);
+
 	}
 	return nullptr;
 }
@@ -339,49 +350,56 @@ void incrProgressBar(HWND hWnd, int step)
 	SendMessage(GetDlgItem(hWnd, hProgBar_), PBM_STEPIT, 0, 0);
 }
 
+void setStatusBarText(LPCWSTR text)
+{
+	SetWindowText(stateSL, text);
+}
+
 void onLoadCMClicked(HWND hWnd)
 {
 	if (currentDeviceNumber < 0)
 	{
-		showMessageBox(hWnd, L"Не выбрано устройство!", L"Загрузка конфигурации", errorMessage);
+		setStatusBarText(L"Не выбрано устройство!");
 		return;
 	}
 	char * szFileName = new char[MAXPATH];
 	GetWindowTextA(confWayLE, szFileName, MAXPATH);
 	std::string pathToCommodFile(szFileName);	
+	delete[] szFileName;
 
 	char * sevenZipFileName = new char[MAXPATH];
 	GetWindowTextA(zipWayLE, sevenZipFileName, MAXPATH);
 	std::string pathTo7Zip(sevenZipFileName);
-	
-	if (!isFileExists(pathToCommodFile))		
-		return showMessageBox(hWnd, L"Не найден файл конфигурации", L"Загрузка конфигурации", errorMessage);
+	delete[] sevenZipFileName;
 
+	if (!isFileExists(pathToCommodFile)) {
+		setStatusBarText(L"Не найден файл конфигурации");
+		return;
+	}
 	StrategyDeployment  *manager = new StrategyDeployment(pathToCommodFile);
 	manager->setZip(compressEnabled);
 	manager->setZipLocation(pathTo7Zip);
 	manager->setCreateCompressedFile(compressEnabled);
 	manager->setParse(parseEnabled);
 	manager->setzipCompressionLevel(7);
-	incrProgressBar(hWnd, 10);
+	incrProgressBar(hWnd, 20);
 	bool isOK;
 	if (parseEnabled)
 		isOK = manager->convert();
-	incrProgressBar(hWnd, 20);
+	incrProgressBar(hWnd, 30);
 	isOK = manager->validateCurrentConfiguration();	
 	incrProgressBar(hWnd, 20);
-	//isOK = manager->loadConfiguration(currentDeviceNumber);
-
+	isOK = manager->loadConfiguration(currentDeviceNumber);
+	
 	if (saveLog)
 		manager->saveLog();
-
-	if (!isOK)
-		return showMessageBox(hWnd, L"Конфигурация не загружена.", L"Загрузка конфигурации", errorMessage);
-	showMessageBox(hWnd, L"Конфигурация загружена успешно.", L"Загрузка конфигурации", warningMessage);
-
-	delete[] szFileName;
-	delete[] sevenZipFileName;
+	std::string resultLog(manager->getLastConfName());
 	delete manager;
+	incrProgressBar(hWnd, 30);
+	isOK ? resultLog.append(" - конфигурация загружена успешно.") :
+		resultLog.append(" -конфигурация не загружена.");
+	
+	SetWindowTextA(stateSL, resultLog.c_str());
 }
 
 void onCompressCBClicked()
@@ -400,7 +418,7 @@ void onRefreshDevicesPBClicked(HWND hWnd)
 	unsigned int devicesCount = StrategyDeployment::getDevicesCount();
 	if (devicesCount <= 0)
 	{
-		showMessageBox(hWnd, L"Не обнаружено FTDI устройств.", L"Обновить список устройств", warningMessage);
+		setStatusBarText(L"Не обнаружено FTDI устройств.");
 		currentDeviceNumber = -1;
 		return;
 	}

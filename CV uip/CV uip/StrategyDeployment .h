@@ -25,7 +25,7 @@
 #define WRONGSIZE 0xDEAD1024
 #define WRONGCRC 0xDEADCCCC
 #define OKREPLY 0x3f344A20
-#define RESPONSESIZE 15
+#define RESPONSESIZE 64*1024
 
 //end of define flags
 
@@ -42,6 +42,7 @@ private:
 	std::string commodFileName;
 	std::string folderSaveName;
 	std::string zipLocation;
+	std::string lastConfName;
 	bool parseEnabled;
 	bool zipEnabled;
 	bool saveToSameFolder;
@@ -96,6 +97,7 @@ public:
 	bool isZipEnabled() const  { return zipEnabled; }
 	bool isSaveToSameFolder() const  { return saveToSameFolder; }
 	bool isCreateCompressedFile()const { return createCompressedFile; }
+	std::string getLastConfName() { return lastConfName; }
 	
 	//set
 	void setZipLocation(const std::string & location) { zipLocation = location; }
@@ -147,7 +149,7 @@ public:
 	FT_HANDLE getDeviceHandle(unsigned int DeviceNumber);
 	FT_STATUS sendCommand(FT_HANDLE ftHandle, Commands command);
 	void createPacket(std::vector <unsigned char> &buffer);
-	int readResponse(FT_HANDLE ft_handle, unsigned long bytesToRead);
+	int readResponse(FT_HANDLE ft_handle, unsigned int size);
 	FT_STATUS closeFTDI(FT_HANDLE ftHandle);
 	FT_STATUS loadCM(FT_HANDLE ft_handle);
 	FT_STATUS reboot(FT_HANDLE ft_handle); 

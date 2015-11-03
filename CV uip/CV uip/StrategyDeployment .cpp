@@ -13,20 +13,20 @@ StrategyDeployment::StrategyDeployment(const std::string commodFileName_) :
 	commodFile = nullptr;
 }
 
-bool StrategyDeployment::zip(const std::string& sourceFileName, const std::string zippedFileName) 
+bool StrategyDeployment::zip(const std::string& sourceFileName, const std::string zippedFileName)
 {
 	STARTUPINFOA si;
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
-	auto appParam = "7z a -tzip -mx" + std::to_string(zipCompressionLevel) + " \"" + zippedFileName +"\"" + " \"" + sourceFileName + "\"";
+	auto appParam = "7z a -tzip -mx" + std::to_string(zipCompressionLevel) + " \"" + zippedFileName + "\"" + " \"" + sourceFileName + "\"";
 	if (!CreateProcessA(zipLocation.c_str(),
 		_strdup(appParam.c_str()),
 		nullptr,           // Process handle not inheritable
 		nullptr,           // Thread handle not inheritable
 		FALSE,			   // Set handle inheritance to FALSE
-		0,  // Don't show 7zip log    
+		CREATE_NO_WINDOW,  // Don't show 7zip log    
 		nullptr,           // Use parent's environment block
 		nullptr,           // Use parent's starting directory 
 		&si,               // Pointer to STARTUPINFO structure
@@ -61,9 +61,9 @@ bool StrategyDeployment::to_zip()
 bool StrategyDeployment::saveFile(const std::string fileName, unsigned char *buffer, long size, const std::string &param)
 {
 	FILE *file;
-	if (fopen_s(&file, fileName.c_str(), param.c_str())!=0)
+	if (fopen_s(&file, fileName.c_str(), param.c_str()) != 0)
 	{
-		logList.push_back("Unable to open file for write: " + fileName + ". Error: "+ std::to_string(GetLastError()));
+		logList.push_back("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
 	if (!fwrite(buffer, sizeof(char), size, file))
@@ -79,7 +79,7 @@ bool StrategyDeployment::saveFile(const std::string fileName, const std::string&
 {
 
 	char *cstr = new char[buffer.length() + 1];
-	strcpy_s(cstr, buffer.length() + 1,  buffer.c_str());
+	strcpy_s(cstr, buffer.length() + 1, buffer.c_str());
 
 	FILE *file;
 	if (fopen_s(&file, fileName.c_str(), param.c_str()) != 0)
@@ -98,7 +98,7 @@ bool StrategyDeployment::saveFile(const std::string fileName, const std::string&
 
 }
 
-bool StrategyDeployment::saveFile(const std::string fileName,  std::vector<unsigned char> vecToSave)
+bool StrategyDeployment::saveFile(const std::string fileName, std::vector<unsigned char> vecToSave)
 {
 	int size = vecToSave.size();
 	unsigned char * buffer = new unsigned char[size];
@@ -133,7 +133,7 @@ bool StrategyDeployment::openfile(const std::string fileName)
 		logList.push_back("File:" + fileName + " is not exist");
 		return false;
 	}
-	if (fopen_s(&commodFile, fileName.c_str(), "r+b")!=0)
+	if (fopen_s(&commodFile, fileName.c_str(), "r+b") != 0)
 		logList.push_back("Can not open file: " + fileName + ". Error: " + std::to_string(GetLastError()));
 	commodFileSize = getFileSize(fileName);
 	return true;
@@ -143,30 +143,30 @@ bool StrategyDeployment::convert()
 {
 	//parsing file
 	//parsing header
-	if (!openfile(commodFileName))	{
+	if (!openfile(commodFileName)) {
 		return false;
 	}
 	auto header = new char[HEADER_SIZE];
 	fread_s(header, HEADER_SIZE, sizeof(char), HEADER_SIZE, commodFile);
 
 	//parsing data
-	int dataSize = commodFileSize - HEADER_SIZE;
+	int dataSize = commodFileSize - HEADER_SIZE - 7;
 	auto dataToParse = new char[dataSize];
-	fseek(commodFile, HEADER_SIZE, SEEK_SET);
+	fseek(commodFile, HEADER_SIZE + 7, SEEK_SET);
 	fread_s(dataToParse, dataSize, sizeof(char), dataSize, commodFile);
 	std::list <std::string> stringList;
 	std::string dataString(dataToParse);
 	std::string delimiter = DELIMITER;
-	size_t pos = 0;
-	std::string token;
-	while ((pos = dataString.find(delimiter)) != std::string::npos) 
+	size_t pos;
+	while ((pos = dataString.find(delimiter)) != std::string::npos)
 	{
-		token = dataString.substr(0, pos);
-		stringList.push_back(token);
+		std::string token = dataString.substr(0, pos);
 		dataString.erase(0, pos + delimiter.length());
+		stringList.push_back(token);
 	}
+	stringList.push_back(dataString);
 	dataString = "";
-	stringList.push_back(token);
+
 	//stringList.pop_front();//the firts part is always zero
 	auto address = HEADER_SIZE;
 	std::list <Fat> headerList;
@@ -224,7 +224,7 @@ bool StrategyDeployment::convert()
 		/*text part must be multiply of 256: fill 0xFF*/
 		tempCount = temp.size();
 		int bytesToFill = HEADER_SIZE - tempCount%HEADER_SIZE;
-		auto fillStr = new char [bytesToFill] ;
+		auto fillStr = new char[bytesToFill];
 		memset(fillStr, 0xFF, bytesToFill);
 		temp.append(fillStr, bytesToFill);
 
@@ -236,7 +236,8 @@ bool StrategyDeployment::convert()
 		headerList.push_back(tempFat);
 		/*end of cal header*/
 		*it = temp;
-		dataString += temp ;
+		dataString += temp;
+		//saveFile(commodFileName + std::to_string(testFilename++), temp, temp.size(), "wb");
 		delete[] fillStr;
 	}
 	/*create new header for converted file*/
@@ -254,7 +255,7 @@ bool StrategyDeployment::convert()
 	//done creating new header
 
 	bool isOk = saveFile(commodFileName + "_a", headerNew);
-	isOk=saveFile(commodFileName + "_a", dataString, dataString.size(), "a+b");
+	isOk = saveFile(commodFileName + "_a", dataString, dataString.size(), "a+b");
 
 	isOk ? logList.push_back("File: " + commodFileName + " sucsessfully converted to\nFile: " + commodFileName + "_a.") :
 		logList.push_back("Error: can not convert file " + commodFileName);
@@ -278,7 +279,7 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	}
 	auto pDllGetFactory = reinterpret_cast<DLLGETFACTORY>(GetProcAddress(hInstDll, "returnFactory"));
 	auto pMyFactory = (pDllGetFactory)();
-	if (pMyFactory == nullptr) 
+	if (pMyFactory == nullptr)
 		return false;
 	auto drIoManager = pMyFactory->CreateDriversIoManager();
 	auto drManager = pMyFactory->CreateDriverManager();
@@ -288,6 +289,8 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	testWorkManager->initCommod();
 	logList.push_back("Configuration file validation: " + currentCommodFile);
 	auto validConfig = testWorkManager->ValidateConfig();
+	auto reg = testWorkManager->GetConfiguration()->GetRegister(REGISTER_ID::rNAME);
+	lastConfName = std::string(reg->GetValueStr());
 	delete drIoManager;
 	delete drManager;
 	delete testWorkManager;
@@ -296,7 +299,7 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	if (!validConfig) {
 		logList.push_back("Invalid configuration.");
 		return false;
-	}	
+	}
 	return validConfig;
 }
 
@@ -323,7 +326,7 @@ int StrategyDeployment::getCRC32Commod()
 	/*boost::crc_32_type checksum_agent;
 	checksum_agent.process_bytes(rawBuffer, commodFileSize);
 	int a= checksum_agent.checksum();*/
-	}
+}
 
 void StrategyDeployment::addIntToVect(int var, std::vector<unsigned char>& vector)
 {
@@ -360,7 +363,7 @@ void StrategyDeployment::setFTDIDevice(char* serialNumber)
 
 bool StrategyDeployment::loadConfiguration()
 {
-	if (getDevicesCount() <= 0)	{
+	if (getDevicesCount() <= 0) {
 		logList.push_back("No FTDI defices found!");
 		return false;
 	}
@@ -379,12 +382,18 @@ bool StrategyDeployment::loadConfiguration(FT_HANDLE ft_handle)
 	}
 	if (!setFTDISettings(ft_handle))
 		return false;
+	Sleep(1000);
+	if( FT_Purge(ft_handle, FT_PURGE_RX )!= FT_OK)
+	{
+		logList.push_back("Error :FT_Purge receive	buffer.");
+		return false;
+	}
 	if (sendCommand(ft_handle, Commands::LoadCM) != FT_OK) {
 		logList.push_back("Error: cant send command!");
 		return false;
 	}
 	/*read reply*/
-	if (readResponse(ft_handle, RESPONSESIZE) != OKREPLY)
+	if (readResponse(ft_handle, 15) != OKREPLY)
 	{
 		logList.push_back("Error: configuration can not be load.");
 		return false;
@@ -443,12 +452,12 @@ unsigned int StrategyDeployment::getDevicesCount()
 
 void StrategyDeployment::getSerialNumber(int devideNum, char* serialNumber)
 {
-	 FT_ListDevices(reinterpret_cast<PVOID>(devideNum), serialNumber, FT_LIST_BY_INDEX | FT_OPEN_BY_SERIAL_NUMBER);
+	FT_ListDevices(reinterpret_cast<PVOID>(devideNum), serialNumber, FT_LIST_BY_INDEX | FT_OPEN_BY_SERIAL_NUMBER);
 }
 
 void StrategyDeployment::getDeviceDesrc(int deviceNum, char* descr)
 {
-	
+
 	FT_DEVICE_LIST_INFO_NODE *devInfo;
 	DWORD numDevs;
 	FT_STATUS ftStatus = FT_CreateDeviceInfoList(&numDevs);
@@ -480,7 +489,7 @@ FT_HANDLE StrategyDeployment::getDeviceByDescription(const std::string descripti
 	auto ftStatus = FT_OpenEx(PVOID(description.c_str()), FT_OPEN_BY_DESCRIPTION, &ftHandle);
 	if (ftStatus == FT_OK) {
 		// FT_Open OK, use ftHandle to access device
-		logList.push_back("The device: "+ description +" opened.");
+		logList.push_back("The device: " + description + " opened.");
 		return ftHandle;
 	}
 	else {
@@ -556,7 +565,7 @@ FT_STATUS StrategyDeployment::sendCommand(FT_HANDLE ftHandle, Commands command)
 
 }
 
-void StrategyDeployment::createPacket (std::vector <unsigned char> &buffer)
+void StrategyDeployment::createPacket(std::vector <unsigned char> &buffer)
 {
 	int headerPlisFlag = STARTFLAG;
 	short headerPlisLength; //plis logic demands decrement body size
@@ -584,15 +593,19 @@ void StrategyDeployment::createPacket (std::vector <unsigned char> &buffer)
 	addIntToVect(endFlag, buffer);
 }
 
-int StrategyDeployment::readResponse(FT_HANDLE ft_handle, unsigned long bytesToRead)
+int StrategyDeployment::readResponse(FT_HANDLE ft_handle, unsigned int size)
 {
-	unsigned long bytesReturned;
-	unsigned char* byteRep = new unsigned char [bytesToRead];
-	if (FT_Read(ft_handle, byteRep, bytesToRead, &bytesReturned) != FT_OK) {
+	//unsigned long bytesReturned;
+	//if (FT_GetQueueStatus(ft_handle, &bytesReturned) != FT_OK)
+	//	return -1;
+	unsigned long bytesRead;
+	unsigned char* byteRep = new unsigned char[size];
+	if (FT_Read(ft_handle, byteRep, size, &bytesRead) != FT_OK) {
 		logList.push_back("Error: FT_Read.");
 		return -1;
 	}
-	int response  = (byteRep[14] << 24) | (byteRep[13] << 16) | (byteRep[12] << 8) | byteRep[11];
+	int response = (byteRep[bytesRead -1] << 24) | (byteRep[bytesRead - 2] << 16)
+		| (byteRep[bytesRead - 3] << 8) | byteRep[bytesRead - 4];
 	delete[] byteRep;
 	return response;
 }
@@ -606,8 +619,8 @@ FT_STATUS StrategyDeployment::loadCM(FT_HANDLE ft_handle)
 {
 	std::vector <unsigned char> buffer;
 	createPacket(buffer);//creating packet
-	unsigned long bytesSended;	
-	if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended)!= FT_OK) {
+	unsigned long bytesSended;
+	if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) != FT_OK) {
 		logList.push_back("Error: FT_Write.");
 		return -1;
 	}
@@ -618,10 +631,10 @@ FT_STATUS StrategyDeployment::reboot(FT_HANDLE ft_handle)
 {
 	short size = 4 * (3 + 1) - 1;
 	std::vector <unsigned char> vecData;
-	addIntToVect(STARTFLAG, vecData);	
+	addIntToVect(STARTFLAG, vecData);
 	addShortToVect(size, vecData);
 	addIntToVect(COMMANDFLAG, vecData);
-	addIntToVect(1, vecData);	
+	addIntToVect(1, vecData);
 
 	vecData.push_back(0x5D);
 	vecData.push_back(0x0B);
@@ -741,8 +754,8 @@ void StrategyDeployment::showLog()
 
 bool StrategyDeployment::execute()
 {
+	if (isParseEnabked()) convert();
 	if (validateCurrentConfiguration()) {
-		if (isParseEnabked()) convert();
 		loadConfiguration();
 		return true;
 	}
