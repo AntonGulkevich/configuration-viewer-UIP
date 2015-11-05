@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crc32.cpp" />
-    <ClCompile Include="cv.cpp" />
+    <ClCompile Include="fw.cpp" />
     <ClCompile Include="StrategyDeployment .cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -35,6 +35,7 @@
     <ProjectGuid>{A839BEF4-18E6-402B-93CC-EFC8C4E6B0F8}</ProjectGuid>
     <RootNamespace>CVuip</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <ProjectName>fw</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
