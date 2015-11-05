@@ -261,7 +261,7 @@ bool StrategyDeployment::convert()
 		logList.push_back("Error: can not convert file " + commodFileName);
 
 	fclose(commodFile);
-	if (createCompressedFile)
+	if (createCompressedFile&&isFileExists(zipLocation))
 		to_zip();
 	delete[] header;
 	delete[] dataToParse;
