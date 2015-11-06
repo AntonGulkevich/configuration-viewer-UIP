@@ -26,6 +26,9 @@
 #define WRONGCRC 0xDEADCCCC
 #define OKREPLY 0x3f344A20
 #define RESPONSESIZE 64*1024
+#define FW_FLAG 0x12345678
+#define FW_HEADER_SIZE 12
+#define FW_PACKET_SIZE 0x10000
 
 //end of define flags
 
@@ -43,6 +46,7 @@ private:
 	std::string folderSaveName;
 	std::string zipLocation;
 	std::string lastConfName;
+	std::string firmWareFileName;
 	bool parseEnabled;
 	bool zipEnabled;
 	bool saveToSameFolder;
@@ -74,8 +78,8 @@ public:
 	enum Commands
 	{
 		VersionRequest = 0x01,
-		LoadFW = 0x02,
-		LoadCM = 0x03,  // Загрузка в КМ    /*error*/
+		LoadFW = 0x02, // Загрузка ПО
+		LoadCM = 0x03,  // Загрузка КМ
 		SaveCM = 0x04,  // Выгрузка КМ в ПК
 		DiagnosticEnable = 0x05, // Включить диагностику
 		DiagnosticDisable = 0x06, // Выключить диагностику
@@ -98,6 +102,7 @@ public:
 	bool isSaveToSameFolder() const  { return saveToSameFolder; }
 	bool isCreateCompressedFile()const { return createCompressedFile; }
 	std::string getLastConfName() { return lastConfName; }
+	std::string getFirmWareFileName() { return firmWareFileName; }
 	
 	//set
 	void setZipLocation(const std::string & location) { zipLocation = location; }
@@ -106,6 +111,7 @@ public:
 	void setZip(bool state) { zipEnabled = state; }
 	void zetSaveToSameFolder(bool state) { saveToSameFolder = state; }
 	void setCreateCompressedFile(bool state) { createCompressedFile = state; }
+	void setFirmWareFileName(const std::string & fileName) { firmWareFileName = fileName; }
 
 	//compression
 	bool zip(const std::string &sourceFileName, const std::string zippedFileName);
@@ -134,41 +140,57 @@ public:
 	void addShortToVect(short var, std::vector <unsigned char> &vector);
 	
 	//ft_device
+	bool TESTCHECK();
+	//set current ftdi number
 	void setFTDIdevice(int number);
+	//set current ftdi number due to its serial number
 	void setFTDIDevice(char * serialNumber);
+	//load CM to the first FTDI device
 	bool loadConfiguration();
+	//load CM to the FTDI device due its handle
 	bool loadConfiguration(FT_HANDLE ft_handle);
+	//load CM to the FTDI device due its serial number
 	bool loadConfiguration(unsigned int deviceNumber);
+	//load FW to the first FTDI device
+	bool loadFirmWare();
+	//load FW to the FTDI device due its serial number
+	bool loadFirmWare(FT_HANDLE ft_handle);
+	//load FW to the FTDI device due its serial number
+	bool loadFirmWare(unsigned int deviceNumber);
+	//send FW packet to ftdi device
+	bool sendFW(FT_HANDLE ft_handle);
+	//ccreate packet to load FW
+	void createFWPacket(std::vector <unsigned char> &buffer);
+	//rebooting first ftdi device
 	void rebootDevice();
+	//return number of FTDI devices connected to PC
 	static unsigned int getDevicesCount();
-	static void getSerialNumber(int devideNum, char* serialNumber);
+	//set serialNumber of the FTDI device with number devideNum 
+	static void getSerialNumber(int deviceNum, char* serialNumber);
+	//set descr of the FTDI device with number devideNum 
 	static void getDeviceDesrc(int deviceNum, char * descr);
+	//return the first FTDI device handle
 	FT_HANDLE getFirstDeviceHandle();
+	//return FTDI handle by description
 	FT_HANDLE getDeviceByDescription(const std::string description);
+	//write data to the FTDI device
 	FT_STATUS sendPacket(FT_HANDLE ftHandle, std::vector<unsigned char> &buffer, DWORD bytesToSend, LPDWORD lpdwBytesWritten);
+	//return FDTI device handle by its number
 	FT_HANDLE getDeviceHandle(unsigned int DeviceNumber);
-	FT_STATUS sendCommand(FT_HANDLE ftHandle, Commands command);
+	//create packet to send CM
 	void createPacket(std::vector <unsigned char> &buffer);
+	//return int value responce
 	int readResponse(FT_HANDLE ft_handle, unsigned int size);
+	//close the FTDI device
 	FT_STATUS closeFTDI(FT_HANDLE ftHandle);
-	FT_STATUS loadCM(FT_HANDLE ft_handle);
-	FT_STATUS reboot(FT_HANDLE ft_handle); 
-	FT_STATUS sendSimpleCommand(FT_HANDLE ft_handle, Commands command);
-	FT_STATUS versionRequest();
-	FT_STATUS loadFW();	
-	FT_STATUS saveCM();
-	FT_STATUS diagnosticEnable();
-	FT_STATUS diagnosticDisable();
-	FT_STATUS configuration();
-	FT_STATUS getChannelSettings();
-	FT_STATUS getFails(); 
-	FT_STATUS getDynamicInfo();	
-	FT_STATUS startCalibrate();
-	FT_STATUS getCalibrates(); 
-	FT_STATUS saveSettings();
+	//send one short command to the FTDDI device
+	FT_STATUS sendShortCommand(FT_HANDLE ft_handle, Commands command);
+	//set default FTDI settings
 	bool setFTDISettings(FT_HANDLE ft_handle);
-
-
+	//set FTDI settings
+	bool setFTDISettings(FT_HANDLE ft_handle, unsigned long baudRate,
+		unsigned char worldLength, unsigned char stopBits, unsigned char parity,
+		unsigned long readTimeOut, unsigned long writeTimeOut);
 	//log
 	void saveLog();
 	void showLog();

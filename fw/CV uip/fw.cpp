@@ -20,7 +20,7 @@
 
 /*global vars*/
 static TCHAR szWindowClass[] = _T("win32app");
-static TCHAR szTitle[] = _T("CM loader");
+static TCHAR szTitle[] = _T("FW loader");
 /*end of global vars*/
 
 /*controlls*/
@@ -61,22 +61,15 @@ enum messageType
 enum  controlls
 {
 	convertCB_,
-	compressCB_,
-	saveLogCB_,
 	configSL_,
-	compressorSL_,
 	deviceSL_,
 	openCMPB_,
-	openZipPB_,
 	loadCMPB_,
 	refreshDevicesPB_,
 	confWayLE_,
-	zipWayLE_,
 	devicesDL_,
-	hBitmap_,
 	hProgBar_,
 	stateSB_ 
-
 };
 
 enum typeControlls
@@ -103,7 +96,6 @@ bool isFileExists(const std::string &fileName);
 void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type);
 void incrProgressBar(HWND hWnd, int step);
 void setStatusBarText(LPCWSTR text);
-std::string getZipLocation(HWND hWnd);
 int fileSize(const std::string& fileName);
 /*end of operations*/ 
 
@@ -113,16 +105,11 @@ std::string getFileName(HWND hWnd, PCHAR lpstrFilter, PCHAR lpstrTitle);
 void onLoadCMClicked(HWND hWnd);
 void onRefreshDevicesPBClicked(HWND hWnd);
 void onDeviceChanged();
-//void onZipFileselected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle);
-//void onComvertCBClicked();
-//void onCompressCBClicked();
-//void onSaveLogCBClicked();
 /*end of events*/
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	
-	HWND hWnd = initMainWindow(hInstance, hPrevInstance, lpCmdLine);
+	auto hWnd = initMainWindow(hInstance, hPrevInstance, lpCmdLine);
 
 	initControls(hWnd);
 
@@ -152,20 +139,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			onLoadCMClicked(hWnd);
 			break;
 		case openCMPB_:
-			onConfFileSelected(hWnd, confWayLE,_T("configuratoin files (*.bin)\0*.bin\0All files(*.*)\0*.*\0"), _T("Выбор файла конфигурации"));
+			onConfFileSelected(hWnd, confWayLE,_T("firmware (*.bin)\0*.bin\0All files(*.*)\0*.*\0"), _T("Выбор файла ПО"));
 			break;
-		//case openZipPB_:
-		//	onZipFileselected(hWnd, zipWayLE, _T("7z.exe(7z.exe)\0*.exe\0All files(*.*)\0*.*\0"), _T("Выбор архиватора"));
-		//	break;
-		//case compressCB_:
-		//	onCompressCBClicked();
-		//	break;	
-		//case convertCB_:
-		//	onComvertCBClicked();
-		//	break;
-		//case saveLogCB_:
-		//	onSaveLogCBClicked();
-		//	break;
 		case refreshDevicesPB_:
 			onRefreshDevicesPBClicked(hWnd);
 			break;
@@ -201,44 +176,23 @@ void GetFileName(HWND hWnd, HWND lineEdit,  PTCHAR lpstrFilter, PTCHAR lpstrTitl
 
 void initControls(HWND hWnd)
 {	
-	/*check boxes*/ 
-	/*convertCB  = createWidget(check_box, _T("Сжатие конфигурации"), hWnd, 10, 90, 200, 16, convertCB_);
-	compressCB = createWidget(check_box, _T("Создать архив"), hWnd, 210, 90, 130, 16, compressCB_);
-	saveLogCB = createWidget(check_box, _T("Сохранить лог"), hWnd, 350, 90, 130, 16, saveLogCB_);*/
-	/*end of check boxes*/
-
 	/*static labels*/
-	configSL = createWidget(static_label, _T("Конфигурация:"), hWnd, 10, 23, 100, 20, configSL_);
+	configSL = createWidget(static_label, _T("Firmware:"), hWnd, 10, 23, 100, 20, configSL_);
 	deviceSL = createWidget(static_label, _T("Устройство:"), hWnd, 10, 60, 100, 20, deviceSL_);
-	/*end of static labels*/
-
 	/*status bar*/
 	stateSB = createWidget(status_bar, _T("Все готово к работе!"), hWnd, 10, 177, 470, 20, stateSB_);
 	SetWindowText(stateSB, _T("Все готово к работе!"));
-	/*end of status bar*/
-
 	/*line edits*/
 	confWayLE = createWidget(line_edit, _T("D:\\commod.bin"), hWnd, 120, 20, 410, 25, confWayLE_);
-	//zipWayLE = createWidget(line_edit, _T("D:\\Program Files (x86)\\7-Zip\\7z.exe"), hWnd, 120, 55, 410, 25, zipWayLE_);
-	/*end of line edits*/
-
 	/*push buttons*/
 	loadCMPB  = createWidget(push_button, _T("Загрузить"), hWnd, 450, 95, 100, 25, loadCMPB_);
-	//EnableWindow(loadCMPB, false);
 	openCMPB  = createWidget(push_button, _T("..."), hWnd, 530, 20, 23, 25, openCMPB_);
-	//openZipPB = createWidget(push_button, _T("..."), hWnd, 530, 55, 23, 25, openZipPB_);
 	refreshDevicesPB = createWidget(push_button, _T("Обновить"), hWnd, 450, 57, 100, 25, refreshDevicesPB_);
-	/*end of push buttons*/
-
 	/*drop lists*/
 	devicesDL = createWidget(drop_list, nullptr, hWnd, 120, 57, 320, 200, devicesDL_);
 	onRefreshDevicesPBClicked(hWnd);
-	/*end of drop lists*/
-
 	/*progress bar*/
 	hProgBar = createWidget(progress_bar, nullptr, hWnd, 10, 97, 430, 20, hProgBar_);
-	/*end of progress bar*/
-	//enableCompressorGroup(false);
 }
 
 HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine)
@@ -328,24 +282,6 @@ std::string getFileName(HWND hWnd, PCHAR lpstrFilter, PCHAR lpstrTitle)
 	return fileName;
 }
 
-//void onZipFileselected(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle)
-//{
-//	GetFileName(hWnd, lineEdit, lpstrFilter, lpstrTitle);
-//}
-
-//void onComvertCBClicked()
-//{
-//	parseEnabled = (SendMessage(convertCB, BM_GETCHECK, 0, 0) == BST_CHECKED);
-//}
-
-//void enableCompressorGroup(bool state)
-//{
-//	compressEnabled = state;
-//	EnableWindow(zipWayLE, state);
-//	EnableWindow(compressorSL, state);
-//	EnableWindow(openZipPB, state);
-//}
-
 void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type)
 {
 	switch(type)
@@ -371,75 +307,35 @@ void setStatusBarText(LPCWSTR text)
 	SetWindowText(stateSB, text);
 }
 
-std::string getZipLocation(HWND hWnd)
-{
-	CHAR szNativeProgramFilesFolder[MAX_PATH];
-	ExpandEnvironmentStringsA("%ProgramW6432%",
-		szNativeProgramFilesFolder,
-		ARRAYSIZE(szNativeProgramFilesFolder));
-
-	std::string fullway(szNativeProgramFilesFolder);
-	fullway.append("\\7 - Zip\\7z.exe");
-	if (!isFileExists(fullway))
-		fullway = getFileName(hWnd, "7z.exe(7z.exe)\0*.exe\0All files(*.*)\0*.*\0", "Выбор архиватора");
-	return fullway;
-
-}
-
 void onLoadCMClicked(HWND hWnd)
 {
 	setStatusBarText(L"Загрузка...");
-	if (currentDeviceNumber < 0)
-	{
-		setStatusBarText(L"Не выбрано устройство!");
-		return;
-	}
-
+	//if (currentDeviceNumber < 0)
+	//{
+	//	setStatusBarText(L"Не выбрано устройство!");
+	//	return;
+	//}
 	auto szFileName = new char[MAX_PATH];
 	GetWindowTextA(confWayLE, szFileName, MAX_PATH);
 	std::string pathToCommodFile(szFileName);	
 	delete[] szFileName;
-
 	if (!isFileExists(pathToCommodFile)) {
-		setStatusBarText(L"Не найден файл конфигурации");
+		setStatusBarText(L"Не найден файл ПО.");
 		return;
 	}
 	auto manager = new StrategyDeployment(pathToCommodFile);
 	incrProgressBar(hWnd, 20);
-	bool isOK;
-	if (fileSize(pathToCommodFile) > 0x10000)
-	{
-		manager->setZip(true);
-		manager->setCreateCompressedFile(true);
-		manager->setZipLocation(getZipLocation(hWnd));
-		manager->setParse(true);
-		manager->setzipCompressionLevel(7);
-		isOK = manager->convert();
-	}
-	
-	incrProgressBar(hWnd, 30);
-	isOK = manager->validateCurrentConfiguration();	
-	incrProgressBar(hWnd, 20);
-	isOK = manager->loadConfiguration(currentDeviceNumber);
-	manager->saveLog();
-	auto resultLog(manager->getLastConfName());
+	bool isOK= TRUE;
+	manager->setFirmWareFileName(pathToCommodFile);
+	manager->TESTCHECK();
+	std::string resultLog;
 	delete manager;
 	incrProgressBar(hWnd, 30);
-	isOK ? resultLog.append(" - конфигурация загружена успешно.") :
-		resultLog.append(" -конфигурация не загружена.");
+	isOK ? resultLog.append(" - ПО загружено успешно.") :
+		resultLog.append(" -ПО не загружено.");
 	
 	SetWindowTextA(stateSB, resultLog.c_str());
 }
-
-//void onCompressCBClicked()
-//{
-//	enableCompressorGroup(SendMessage(compressCB, BM_GETCHECK, 0, 0) == BST_CHECKED);
-//}
-
-//void onSaveLogCBClicked()
-//{
-//	saveLog = (SendMessage(saveLogCB, BM_GETCHECK, 0, 0) == BST_CHECKED);
-//}
 
 void onRefreshDevicesPBClicked(HWND hWnd)
 {
