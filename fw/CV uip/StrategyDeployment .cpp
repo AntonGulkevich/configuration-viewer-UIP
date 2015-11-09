@@ -376,7 +376,7 @@ bool StrategyDeployment::loadConfiguration(FT_HANDLE ft_handle)
 	if (ft_handle == nullptr)
 		return false;
 	if (sendShortCommand(ft_handle, Commands::DiagnosticDisable) != FT_OK) {
-		logList.push_back("Error: cant send command!");
+		logList.push_back("Error: can't send command!");
 		return false;
 	}
 	if (!setFTDISettings(ft_handle))
@@ -431,19 +431,28 @@ bool StrategyDeployment::loadFirmWare(FT_HANDLE ft_handle)
 {
 	if (ft_handle == nullptr)
 		return false;
-	if (sendShortCommand(ft_handle, DiagnosticDisable) != FT_OK) {
-		logList.push_back("Error: cant send command!");
-		return false;
-	}
 	if (!setFTDISettings(ft_handle))
 		return false;
-	Sleep(1000);
+	if (sendShortCommand(ft_handle, DiagnosticDisable) != FT_OK) {
+		logList.push_back("Error: can't send command!");
+		return false;
+	}
+	if (sendShortCommand(ft_handle, LoadFW) != FT_OK) {
+		logList.push_back("Error: can't send command!");
+		return false;
+	}
+	if (readResponse(ft_handle, 15) != OKREPLY)
+	{
+		logList.push_back("Error: fw can not be load.");
+		return false;
+	}
+	Sleep(500);
 	if (FT_Purge(ft_handle, FT_PURGE_RX) != FT_OK)
 	{
 		logList.push_back("Error :FT_Purge receive	buffer.");
 		return false;
 	}
-	Sleep(200);
+	Sleep(500);
 	if (!sendFW(ft_handle))
 		return false;
 	logList.push_back("FW loaded to the FTDI device.");
@@ -452,7 +461,7 @@ bool StrategyDeployment::loadFirmWare(FT_HANDLE ft_handle)
 		logList.push_back("Error: cant send command!");
 		return false;
 	}
-	logList.push_back("Rebooting the firts FTDI device.");
+	logList.push_back("Rebooting the first FTDI device.");
 	FT_Close(ft_handle);
 	return true;
 }
@@ -460,6 +469,19 @@ bool StrategyDeployment::loadFirmWare(FT_HANDLE ft_handle)
 bool StrategyDeployment::loadFirmWare(unsigned int deviceNumber)
 {
 	return loadFirmWare(getDeviceHandle(deviceNumber));
+}
+
+char StrategyDeployment::receiveByte(FT_HANDLE ft_handle)
+{
+	unsigned long bytesRead;
+	char* byteRep = new char[1];
+	if (FT_Read(ft_handle, byteRep, 1, &bytesRead) != FT_OK) {
+		logList.push_back("Error: FT_Read.");
+		return NULL;
+	}
+	char response = byteRep[0];
+	delete[] byteRep;
+	return response;
 }
 
 bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
@@ -483,94 +505,58 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 		auto fwRawData = new unsigned char[packetSize];		
 		fread_s(fwRawData, packetSize, sizeof(unsigned char), packetSize, fw_file);
 		std::vector <unsigned char> buffer;
+		crc32.Reset();
+		crc32.ProcessCRC(fwRawData, packetSize);
 		addIntToVect(FW_FLAG, buffer);
 		addShortToVect(packetCount, buffer);
 		addShortToVect(packetNumber, buffer);
-		crc32.Reset();
-		crc32.ProcessCRC(fwRawData, packetSize);
 		addIntToVect(crc32.GetCRC32(), buffer);
 		buffer.insert(buffer.end(), fwRawData, fwRawData + packetSize);
-		unsigned long bytesSended;
-		FT_STATUS ft_state;
-		do {
-			ft_state = sendPacket(ft_handle, buffer, buffer.size(), &bytesSended);
-			logList.push_back("Error: FT_Write.");
-		}
-		while (ft_state != FT_OK);
-
 		delete[] fwRawData;
+		char reply = NULL;
+		for (auto attempts_ = FW_MAX_RETRY; attempts_ != 0; --attempts_){
+			unsigned long bytesSended;
+			for (auto attempts = FW_MAX_RETRY; attempts != 0; --attempts){
+				if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) == FT_OK)
+					break;
+				logList.push_back("Error: FT_Write.");
+				if (attempts == 1) {
+					logList.push_back("Exceeded the maximum number of attempts.");
+					fclose(fw_file);
+					return false;
+				}
+			}			
+			for (auto attempts = FW_MAX_RETRY; attempts != 0; --attempts){
+				reply = receiveByte(ft_handle);
+				if (reply != NULL) {
+					break;
+				}
+				logList.push_back("Error: FW_No_Reply.");
+				if (attempts == 1) {
+					logList.push_back("Exceeded the maximum number of attempts.");
+					fclose(fw_file);
+					return false;
+				}
+			}
+			if (reply != 0xAA || reply != 0x88 || reply != 0x99)
+				break;
+			if (attempts_ == 1) {
+				logList.push_back("Exceeded the maximum number of attempts.");
+				fclose(fw_file);
+				return false;
+			}
+		} 
+		if (reply != 0x77)			{
+				logList.push_back("Error: firmware loading stopped with error byte received: " + std::to_string(reply));
+				fclose(fw_file);
+				return false;
+			}
 	}
-	
-
 	fclose(fw_file);
-
-
-	//unsigned long bytesSended;
-	//if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) != FT_OK) {
-	//	logList.push_back("Error: FT_Write.");
-	//	return false;
-	//}
-	//if (readResponse(ft_handle, 15) != OKREPLY)
-	//{
-	//	logList.push_back("Error: FW can not be load.");
-	//	return false;
-	//}
 	return true;
 }
 bool StrategyDeployment::TESTCHECK()
 {
-	/*send FW to ftdi device*/
-	if (!isFileExists(firmWareFileName))
-	{
-		logList.push_back("File: " + firmWareFileName + " is not exist");
-		return false;
-	}
-	FILE * fw_file;
-	if (fopen_s(&fw_file, firmWareFileName.c_str(), "r+b") != 0)
-		logList.push_back("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));
-	auto fwFileSize = getFileSize(firmWareFileName);
-
-
-	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
-	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
-
-	CRC32_n crc32;
-	for (auto packetNumber = 0; packetNumber < packetCount; ++packetNumber)
-	{
-		int packetSize = packetNumber != (packetCount - 1) ? FW_PACKET_SIZE : lastPacketSize;
-		auto fwRawData = new unsigned char[packetSize];
-		fread_s(fwRawData, packetSize,  sizeof(unsigned char), packetSize, fw_file);
-		std::vector <unsigned char> buffer;
-		addIntToVect(FW_FLAG, buffer);
-		addShortToVect(packetCount, buffer);
-		addShortToVect(packetNumber, buffer);
-		crc32.Reset();
-		crc32.ProcessCRC(fwRawData, packetSize);
-		addIntToVect(crc32.GetCRC32(), buffer);
-		buffer.insert(buffer.end(), fwRawData, fwRawData + packetSize);
-		unsigned long bytesSended;
-	/*	if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) != FT_OK) {
-			logList.push_back("Error: FT_Write.");
-			return false;
-		}*/
-
-		delete[] fwRawData;
-	}
-
-
-	fclose(fw_file);
-
-
-	//unsigned long bytesSended;
-	//if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) != FT_OK) {
-	//	logList.push_back("Error: FT_Write.");
-	//	return false;
-	//}
-	//if (readResponse(ft_handle, 15) != OKREPLY)
-	//{
-	//	logList.push_back("Error: FW can not be load.");
-	//	return false;
-	//}
 	return true;
 }
 

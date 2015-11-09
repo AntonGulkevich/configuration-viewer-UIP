@@ -29,6 +29,7 @@
 #define FW_FLAG 0x12345678
 #define FW_HEADER_SIZE 12
 #define FW_PACKET_SIZE 0x10000
+#define FW_MAX_RETRY 100
 
 //end of define flags
 
@@ -157,6 +158,8 @@ public:
 	bool loadFirmWare(FT_HANDLE ft_handle);
 	//load FW to the FTDI device due its serial number
 	bool loadFirmWare(unsigned int deviceNumber);
+	//receive byte from ftdi
+	char receiveByte(FT_HANDLE ft_handle);
 	//send FW packet to ftdi device
 	bool sendFW(FT_HANDLE ft_handle);
 	//ccreate packet to load FW

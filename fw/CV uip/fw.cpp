@@ -310,11 +310,11 @@ void setStatusBarText(LPCWSTR text)
 void onLoadCMClicked(HWND hWnd)
 {
 	setStatusBarText(L"Загрузка...");
-	//if (currentDeviceNumber < 0)
-	//{
-	//	setStatusBarText(L"Не выбрано устройство!");
-	//	return;
-	//}
+	if (currentDeviceNumber < 0)
+	{
+		setStatusBarText(L"Не выбрано устройство!");
+		return;
+	}
 	auto szFileName = new char[MAX_PATH];
 	GetWindowTextA(confWayLE, szFileName, MAX_PATH);
 	std::string pathToCommodFile(szFileName);	
@@ -327,7 +327,8 @@ void onLoadCMClicked(HWND hWnd)
 	incrProgressBar(hWnd, 20);
 	bool isOK= TRUE;
 	manager->setFirmWareFileName(pathToCommodFile);
-	manager->TESTCHECK();
+	isOK = manager->loadFirmWare(currentDeviceNumber);
+	manager->saveLog();
 	std::string resultLog;
 	delete manager;
 	incrProgressBar(hWnd, 30);
