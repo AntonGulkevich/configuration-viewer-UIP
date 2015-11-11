@@ -89,8 +89,7 @@ public:
 	explicit StrategyDeployment();//constructor
 	//get
 	bool isSaveToSameFolder() const  { return saveToSameFolder; }
-	std::string getFirmWareFileName() { return firmWareFileName; }
-	
+	std::string getFirmWareFileName() { return firmWareFileName; }	
 	//set
 	void zetSaveToSameFolder(bool state) { saveToSameFolder = state; }
 	void setFirmWareFileName(const std::string & fileName) { firmWareFileName = fileName; }

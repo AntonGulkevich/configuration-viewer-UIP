@@ -1,6 +1,7 @@
 ﻿#include "StrategyDeployment .h"
 #include <iterator>
 #include <commctrl.h>
+#include <iomanip>
 
 StrategyDeployment::StrategyDeployment()
 {
@@ -199,13 +200,13 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
 	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
 	CRC32_n crc32;
-	double step=100/ packetCount / 3;
+	double step = 1 / static_cast<double>(packetCount) / 3.0;
 	double currentProgress = 0;
-	std::cout << "Загрузка ПО:  0.0%";
+	int barWidth = 70;
+	int pos = 0.0;
+	std::cout << "Не выключайте питание устройства! Идет установка ПО. \nЗагружаем!\n";
 	for (auto packetNumber = 0; packetNumber < packetCount; ++packetNumber)
-	{
-		currentProgress += step;
-		std::cout << "\b\b\b\b" + std::to_string(currentProgress);
+	{		
 		auto fwRawData = new unsigned char[FW_PACKET_SIZE];
 		memset(fwRawData, '0xFF', FW_PACKET_SIZE);
 		fread_s(fwRawData, FW_PACKET_SIZE, sizeof(unsigned char), FW_PACKET_SIZE, fw_file);
@@ -255,30 +256,42 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 			fclose(fw_file);
 			return false;
 		}
+		pos = barWidth * currentProgress;
+		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
+			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
+		currentProgress += step;
 	}
 	int state;
 	//erase
+	system("CLS");
+	std::cout << "Стираем! \n";
 	for (auto stage = 0; stage < packetCount - 1; ++stage)
 	{
+		pos = barWidth * currentProgress;
+		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
+			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
+		currentProgress += (2 * step);
 		do
 		{
 			state = readReplyState(ft_handle);
 			Sleep(100);
-		} while (state == NULL);
-		currentProgress += step;
-		std::cout << "\b\b\b\b" + std::to_string(currentProgress);
+		} while (state == NULL);		
 	}
 	//write
 	logList.push_back("All erase stages completed successfully.");
+	system("CLS");
+	std::cout << "Завершающий этап. Осталось совсем немного. \n";
 	for (auto stage = 0; stage < 2; ++stage)
 	{
+		pos = barWidth * currentProgress;
+		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
+			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
+		currentProgress += (2 * step);
 		do
 		{
 			state = readReplyState(ft_handle);
 			Sleep(100);
-		} while (state == NULL);
-		currentProgress += step;
-		std::cout << "\b\b\b\b" + std::to_string(currentProgress);
+		} while (state == NULL);		
 	}
 	logList.push_back("Write completed.");
 	fclose(fw_file);
