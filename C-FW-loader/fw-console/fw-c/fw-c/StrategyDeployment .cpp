@@ -126,7 +126,7 @@ void StrategyDeployment::setFTDIDevice(char* serialNumber)
 }
 bool StrategyDeployment::loadFirmWare()
 {
-	if (getDevicesCount() <= 0) {
+	if (getUBSKDevicesCount()<= 0) {
 		logList.push_back("No FTDI defices found!");
 		return false;
 	}
@@ -200,13 +200,13 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
 	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
 	CRC32_n crc32;
-	double step = 1 / static_cast<double>(packetCount) / 3.0;
-	double currentProgress = 0;
-	int barWidth = 70;
-	int pos = 0.0;
-	std::cout << "Не выключайте питание устройства! Идет установка ПО. \nЗагружаем!\n";
+	/*console setup*/
+	auto barWidth = 70;
+	auto pos = 0.0;
+	auto step = static_cast<double>(barWidth) / static_cast<double>(packetCount);
+	std::cout << "Не выключайте питание устройства! Идет установка ПО. \nЭтап 1/3: записываем новую версию по.\n";
 	for (auto packetNumber = 0; packetNumber < packetCount; ++packetNumber)
-	{		
+	{
 		auto fwRawData = new unsigned char[FW_PACKET_SIZE];
 		memset(fwRawData, '0xFF', FW_PACKET_SIZE);
 		fread_s(fwRawData, FW_PACKET_SIZE, sizeof(unsigned char), FW_PACKET_SIZE, fw_file);
@@ -256,42 +256,38 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 			fclose(fw_file);
 			return false;
 		}
-		pos = barWidth * currentProgress;
-		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
-			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
-		currentProgress += step;
+		pos += step;
+		showState(pos, barWidth, packetNumber, packetCount);
 	}
-	int state;
+	
 	//erase
-	system("CLS");
-	std::cout << "Стираем! \n";
+	pos = 0;
+	step = static_cast<double>(barWidth) / static_cast<double>(packetCount);
+	std::cout << "\nЭтап 2/3: стираем предыдущую версию ПО.\n";
+	int state;
 	for (auto stage = 0; stage < packetCount - 1; ++stage)
 	{
-		pos = barWidth * currentProgress;
-		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
-			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
-		currentProgress += (2 * step);
+		pos += step;
+		showState(pos, barWidth, stage, packetCount - 1);
 		do
 		{
 			state = readReplyState(ft_handle);
 			Sleep(100);
-		} while (state == NULL);		
+		} while (state == NULL);
 	}
 	//write
 	logList.push_back("All erase stages completed successfully.");
-	system("CLS");
-	std::cout << "Завершающий этап. Осталось совсем немного. \n";
+	std::cout << "\nЭтап 3/3: осталось совсем немного. ";
+	char waitingStr[] = "-\\|/";
 	for (auto stage = 0; stage < 2; ++stage)
 	{
-		pos = barWidth * currentProgress;
-		std::cout << "[" << std::setprecision(4) << std::setfill('=') << std::setw(pos) << ">"
-			<< std::setfill(' ') << std::setw(barWidth - pos) << "] " << double(currentProgress * 100.0) << "%\r";
-		currentProgress += (2 * step);
+		int posw8 = 0;
 		do
 		{
+			std::cout << waitingStr[posw8 == 4 ? posw8 = 0 : posw8++] << "\b";
 			state = readReplyState(ft_handle);
 			Sleep(100);
-		} while (state == NULL);		
+		} while (state == NULL);
 	}
 	logList.push_back("Write completed.");
 	fclose(fw_file);
@@ -344,6 +340,20 @@ unsigned int StrategyDeployment::getDevicesCount()
 	}
 }
 
+unsigned StrategyDeployment::getUBSKDevicesCount()
+{
+	unsigned int ubsCount = 0;
+	int devCount = getDevicesCount();
+	char *descr;
+	for (int i = 0; i < devCount; ++i)
+	{
+		descr = new char[64];
+		getDeviceDesrc(i, descr);
+		if (!strncmp(descr, "UBS-K", 4)) ubsCount++;
+	}
+	return ubsCount;
+}
+
 void StrategyDeployment::getSerialNumber(int deviceNum, char* serialNumber)
 {
 	FT_ListDevices(reinterpret_cast<PVOID>(deviceNum), serialNumber, FT_LIST_BY_INDEX | FT_OPEN_BY_SERIAL_NUMBER);
@@ -367,8 +377,15 @@ void StrategyDeployment::getDeviceDesrc(int deviceNum, char* descr)
 
 FT_HANDLE StrategyDeployment::getFirstDeviceHandle()
 {
-	return getDeviceHandle(0);
-
+	int devCount = getDevicesCount();
+	char *descr;
+	for (int i = 0; i < devCount; ++i)
+	{
+		descr = new char[64];
+		getDeviceDesrc(i, descr);
+		if (!strncmp(descr, "UBS-K", 4)) return getDeviceHandle(i);
+	}
+	return nullptr;
 }
 
 FT_HANDLE StrategyDeployment::getDeviceByDescription(const std::string description)
@@ -379,12 +396,10 @@ FT_HANDLE StrategyDeployment::getDeviceByDescription(const std::string descripti
 	}
 	FT_HANDLE ftHandle;
 	if (FT_OpenEx(PVOID(description.c_str()), FT_OPEN_BY_DESCRIPTION, &ftHandle) == FT_OK) {
-		// FT_Open OK, use ftHandle to access device
 		logList.push_back("The device: " + description + " opened.");
 		return ftHandle;
 	}
 	else {
-		// FT_Open failed
 		logList.push_back("Error: The device: " + description + " can not be opened!");
 		return nullptr;
 	}
@@ -504,4 +519,8 @@ void StrategyDeployment::saveLog()
 StrategyDeployment::~StrategyDeployment()
 {
 	if (commodFile != nullptr) fclose(commodFile);
+}
+void StrategyDeployment::showState(double pos, int barWidth, double  currentProgress, double max) {
+	std::cout << std::right << "[" << std::setw(ceil(pos)) << std::setfill('=') << ">" << std::setw(ceil(barWidth - pos)) << std::setfill(' ') << "] "
+		<< std::right << std::setw(3) << std::setprecision(4) << static_cast<int>((currentProgress + 1) / max * 100) << "%\r";
 }

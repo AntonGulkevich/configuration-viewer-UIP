@@ -134,6 +134,8 @@ public:
 	int readReplyState(FT_HANDLE ft_handle);
 	//return number of FTDI devices connected to PC
 	static unsigned int getDevicesCount();
+	//return number of FTDI devices starts with UBS-K string connected to PC
+	static unsigned int getUBSKDevicesCount();
 	//set serialNumber of the FTDI device with number devideNum 
 	static void getSerialNumber(int deviceNum, char* serialNumber);
 	//set descr of the FTDI device with number devideNum 
@@ -160,6 +162,8 @@ public:
 		unsigned long readTimeOut, unsigned long writeTimeOut);
 	//log
 	void saveLog();
+	//console
+	static void showState(double pos, int barWidth, double  currentProgress, double max);
 	//destr
 	~StrategyDeployment();	
 };

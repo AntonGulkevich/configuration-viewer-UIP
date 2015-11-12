@@ -6,21 +6,32 @@ using namespace std;
 
 bool isFileExists(const std::string& fileName);
 
+
 int main(int argc, char* argv[])
 {
 	setlocale(LC_ALL, "RUS");
-	if (StrategyDeployment::getDevicesCount() != 1)
+	int devCount = StrategyDeployment::getUBSKDevicesCount();
+
+	if (!devCount)
 	{
-		cout << "Ошибка: должно быть подключено только одно устройство." <<endl;
+		cout << "Ошибка: устройство не подключено, или не отвечает.\n\
+Закройте все программы, использующие устройство.\n\
+Проверьте подключено ли устройство." << endl;
+		system("pause");
+		return -1;
+	}
+	if (devCount > 1)
+	{
+		cout << "Ошибка: должно быть подключено только одно устройство." << endl;
 		system("pause");
 		return -1;
 	}
 	if (argc == 2) {
 		std::string pathToCommodFile(argv[1]);
 		if (!isFileExists(pathToCommodFile)) {
-			std:cout << "Файла с таким именем не существует";
+		std:cout << "Файла с таким именем не существует";
 			system("pause");
-			return -1;			
+			return -1;
 		}
 		StrategyDeployment *manager = new StrategyDeployment();
 		manager->setFirmWareFileName(pathToCommodFile);
@@ -32,7 +43,6 @@ int main(int argc, char* argv[])
 	cout << "Ошибка - неверный формат. Должен быть введен полный путь до загружаемого ПО." << endl;
 	system("pause");
 	return -1;
-	
 }
 
 bool isFileExists(const std::string& fileName)
