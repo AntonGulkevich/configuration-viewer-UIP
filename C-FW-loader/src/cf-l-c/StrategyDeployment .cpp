@@ -133,9 +133,10 @@ bool StrategyDeployment::openfile(const std::string fileName)
 		logList.push_back("File:" + fileName + " is not exist");
 		return false;
 	}
+	commodFileSize = getFileSize(fileName);
 	if (fopen_s(&commodFile, fileName.c_str(), "r+b") != 0)
 		logList.push_back("Can not open file: " + fileName + ". Error: " + std::to_string(GetLastError()));
-	commodFileSize = getFileSize(fileName);
+	
 	return true;
 }
 
@@ -284,7 +285,7 @@ bool StrategyDeployment::validateCurrentConfiguration()
 	auto drIoManager = pMyFactory->CreateDriversIoManager();
 	auto drManager = pMyFactory->CreateDriverManager();
 	std::string currentCommodFile = parseEnabled ? commodFileName + "_a" : commodFileName;
-	drManager->setI2cCommodFileName(currentCommodFile);
+	drManager->setI2cCommodFileName(currentCommodFile.c_str());
 	auto testWorkManager = pMyFactory->CreateWorkManager(drIoManager, drManager);
 	testWorkManager->initCommod();
 	logList.push_back("Configuration file validation: " + currentCommodFile);

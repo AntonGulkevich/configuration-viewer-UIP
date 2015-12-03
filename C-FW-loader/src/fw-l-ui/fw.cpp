@@ -2,6 +2,7 @@
 #include <string.h>
 #include <commctrl.h>
 #include <tchar.h>
+#include <fstream>
 #include "StrategyDeployment .h"
 
 #ifdef UNICODE
@@ -88,7 +89,7 @@ void GetFileName(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle
 void initControls(HWND hWnd);
 HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine);
 HWND createWidget(int type, wchar_t * caption, HWND hWnd, int x, int y, int w, int h, int index);
-bool isFileExists(PCHAR name);
+//bool isFileExists(PCHAR name);
 bool isFileExists(const std::string &fileName);
 //void enableCompressorGroup(bool state);
 void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type);
@@ -204,7 +205,7 @@ void initControls(HWND hWnd)
 	/*static labels*/
 	configSL = createWidget(static_label, _T("Firmware:"), hWnd, 10, 23, 100, 20, configSL_);
 	deviceSL = createWidget(static_label, _T("Устройство:"), hWnd, 10, 60, 100, 20, deviceSL_);
-	warningSL = createWidget(static_label, _T("Не отключайте питание блока! Это может привести к выходу из строя."), hWnd, 10, 135, 500, 20, warningSL_);
+	warningSL = createWidget(static_label, _T("Не отключайте питание блока! Это может привести к выходу из строя."), hWnd, 10, 145, 500, 20, warningSL_);
 	/*status bar*/
 	stateSB = createWidget(status_bar, _T("Все готово к работе!"), hWnd, 10, 177, 470, 20, stateSB_);
 	SetWindowText(stateSB, _T("Все готово к работе!"));
@@ -397,20 +398,28 @@ void onDeviceChanged()
 	currentDeviceNumber = SendMessage(devicesDL, CB_GETCURSEL, 0, 0);
 }
 
-bool isFileExists(PCHAR name) {
-	struct stat buffer;
-	return (stat(name, &buffer) == 0);
+//bool isFileExists(PCHAR name) {
+//	if (FILE *file = fopen(name, "r")) {
+//		fclose(file);
+//		return true;
+//	}
+//	else {
+//		return false;
+//	}
+//}
+
+bool isFileExists(const std::string& filename) {
+	if (FILE *file = fopen(filename.c_str(), "r")) {
+		fclose(file);
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
-bool isFileExists(const std::string& fileName)
+std::ifstream::pos_type fileSize(const char* filename)
 {
-	struct stat buffer;
-	return (stat(fileName.c_str(), &buffer) == 0);
-}
-int fileSize(const std::string& fileName)
-{
-	struct stat buf;
-	if (stat(fileName.c_str(), &buf) != 0)
-		return -1;
-	return buf.st_size;
+	std::ifstream in(filename, std::ios::binary | std::ios::ate);
+	return in.tellg();
 }

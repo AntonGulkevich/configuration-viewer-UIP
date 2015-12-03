@@ -117,14 +117,20 @@ public:
 	bool saveFile(const std::string fileName, const std::vector<unsigned char> vecToSave);
 	bool saveFile(const std::string fileName, const std::list<std::string> listToSave);
 	bool openfile(const std::string fileName);
-	bool isFileExists(const std::string& name) const {
-		struct stat buffer;
-		return (stat(name.c_str(), &buffer) == 0);
+	bool isFileExists(const std::string& filename) const
+	{
+		if (FILE *file = fopen(filename.c_str(), "r")) {
+			fclose(file);
+			return true;
+		}
+		else {
+			return false;
+		}
 	}
-	long getFileSize(std::string filename) const {
-		struct stat stat_buf;
-		int rc = stat(filename.c_str(), &stat_buf);
-		return rc == 0 ? stat_buf.st_size : -1;
+	long getFileSize(const std::string& filename) const
+	{
+		std::ifstream in(filename.c_str(), std::ios::binary | std::ios::ate);
+		return static_cast<long>(in.tellg());
 	}
 	bool convert();
 	bool validateCurrentConfiguration();

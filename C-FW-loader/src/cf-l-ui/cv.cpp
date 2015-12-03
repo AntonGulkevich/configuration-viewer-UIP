@@ -97,7 +97,6 @@ void GetFileName(HWND hWnd, HWND lineEdit, PTCHAR lpstrFilter, PTCHAR lpstrTitle
 void initControls(HWND hWnd);
 HWND initMainWindow(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine);
 HWND createWidget(int type, wchar_t * caption, HWND hWnd, int x, int y, int w, int h, int index);
-bool isFileExists(PCHAR name);
 bool isFileExists(const std::string &fileName);
 //void enableCompressorGroup(bool state);
 void showMessageBox(HWND hWnd, LPCWSTR text, LPCWSTR title, messageType type);
@@ -415,10 +414,18 @@ void onLoadCMClicked(HWND hWnd)
 		manager->setParse(true);
 		manager->setzipCompressionLevel(7);
 		isOK = manager->convert();
-	}
-	
+	}	
 	incrProgressBar(hWnd, 30);
 	isOK = manager->validateCurrentConfiguration();	
+	if (!isOK)
+	{
+		incrProgressBar(hWnd, 50);
+		SetWindowTextA(stateSB, "Ошибка: неверная конфигурация! Отмена загрузки.");
+		manager->saveLog();
+		delete manager;
+		return;
+	}
+		
 	incrProgressBar(hWnd, 20);
 	isOK = manager->loadConfiguration(currentDeviceNumber);
 	manager->saveLog();
@@ -475,20 +482,17 @@ void onDeviceChanged()
 	currentDeviceNumber = SendMessage(devicesDL, CB_GETCURSEL, 0, 0);
 }
 
-bool isFileExists(PCHAR name) {
-	struct stat buffer;
-	return (stat(name, &buffer) == 0);
+bool isFileExists(const std::string& filename) {
+	if (FILE *file = fopen(filename.c_str(), "r")) {
+		fclose(file);
+		return true;
+	}
+	else {
+		return false;
+	}
 }
-
-bool isFileExists(const std::string& fileName)
+int fileSize(const std::string& filename)
 {
-	struct stat buffer;
-	return (stat(fileName.c_str(), &buffer) == 0);
-}
-int fileSize(const std::string& fileName)
-{
-	struct stat buf;
-	if (stat(fileName.c_str(), &buf) != 0)
-		return -1; 
-	return buf.st_size;
+	std::ifstream in(filename.c_str(), std::ios::binary | std::ios::ate);
+	return static_cast<int>(in.tellg());
 }

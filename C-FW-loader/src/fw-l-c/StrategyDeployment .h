@@ -5,9 +5,10 @@
 #include <string>
 #include <list>
 #include <windows.h>
-#include <iostream>
 #include <stdio.h>
-#include <tchar.h>
+#include <iterator>
+#include <iomanip>
+#include <fstream>
 
 #define HEADER_SIZE 256
 #define CLOCK_FILE_SIZE 64
@@ -86,14 +87,19 @@ public:
 	bool saveFile(const std::string fileName, const std::string &buffer, long size, const std::string &param);
 	bool saveFile(const std::string fileName, const std::vector<unsigned char> vecToSave);
 	bool saveFile(const std::string fileName, const std::list<std::string> listToSave);
-	bool isFileExists(const std::string& name) const{
-		struct stat buffer;
-		return (stat(name.c_str(), &buffer) == 0);
+	inline bool isFileExists(const std::string& filename) {
+		if (FILE *file = fopen(filename.c_str(), "r")) {
+			fclose(file);
+			return true;
+		}
+		else {
+			return false;
+		}
 	}
-	long getFileSize(std::string filename) const{
-		struct stat stat_buf;
-		int rc = stat(filename.c_str(), &stat_buf);
-		return rc == 0 ? stat_buf.st_size : -1;
+	inline long getFileSize(const std::string& filename)
+	{
+		std::ifstream in(filename.c_str(), std::ios::binary | std::ios::ate);
+		return static_cast<long>(in.tellg());
 	}
 	void addIntToVect(int var, std::vector<unsigned char> &vector);
 	void addShortToVect(short var, std::vector <unsigned char> &vector);

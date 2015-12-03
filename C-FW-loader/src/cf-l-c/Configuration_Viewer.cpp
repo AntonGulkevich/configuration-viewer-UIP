@@ -12,9 +12,19 @@ bool isLittleEndian()
 	return (numPtr[0] == 1);
 }
 
-bool isFileExists(const std::string& name) {
-	struct stat buffer;
-	return (stat(name.c_str(), &buffer) == 0);
+bool isFileExists(const std::string& filename) {
+	if (FILE *file = fopen(filename.c_str(), "r")) {
+		fclose(file);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+long getFileSize(const std::string& filename)
+{
+	std::ifstream in(filename.c_str(), std::ios::binary | std::ios::ate);
+	return static_cast<long>(in.tellg());
 }
 
 void showHelp()

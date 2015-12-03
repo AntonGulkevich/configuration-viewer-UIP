@@ -85,9 +85,10 @@ bool StrategyDeployment::openfile(const std::string fileName)
 		logList.push_back("File:" + fileName + " is not exist");
 		return false;
 	}
+	commodFileSize = getFileSize(fileName);
 	if (fopen_s(&commodFile, fileName.c_str(), "r+b") != 0)
 		logList.push_back("Can not open file: " + fileName + ". Error: " + std::to_string(GetLastError()));
-	commodFileSize = getFileSize(fileName);
+	
 	return true;
 }
 
@@ -193,9 +194,9 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 		return false;
 	}
 	FILE * fw_file;
-	if (fopen_s(&fw_file, firmWareFileName.c_str(), "r+b") != 0)
-		logList.push_back("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));
 	auto fwFileSize = getFileSize(firmWareFileName);
+	if (fopen_s(&fw_file, firmWareFileName.c_str(), "r+b") != 0)
+		logList.push_back("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));	
 	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
 	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
 	CRC32_n crc32;

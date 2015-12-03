@@ -1,7 +1,5 @@
 ﻿#include "StrategyDeployment .h"
-#include <iterator>
-#include <commctrl.h>
-#include <iomanip>
+#include <iostream>
 
 StrategyDeployment::StrategyDeployment()
 {
@@ -178,10 +176,11 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 		logList.push_back("File: " + firmWareFileName + " is not exist");
 		return false;
 	}
+	auto fwFileSize = getFileSize(firmWareFileName);
 	FILE * fw_file;
 	if (fopen_s(&fw_file, firmWareFileName.c_str(), "r+b") != 0)
 		logList.push_back("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));
-	auto fwFileSize = getFileSize(firmWareFileName);
+	
 	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
 	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
 	CRC32_n crc32;
@@ -189,7 +188,7 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	auto barWidth = 70;
 	auto pos = 0.0;
 	auto step = static_cast<double>(barWidth) / static_cast<double>(packetCount);
-	std::cout << "Не выключайте питание устройства! Идет установка ПО. \nЭтап 1/3: записываем новую версию по.\n";
+	std::cout << "Не выключайте питание устройства! Идет установка ПО. \nЭтап 1/3: записываем новую версию ПО.\n";
 	for (auto packetNumber = 0; packetNumber < packetCount; ++packetNumber)
 	{
 		auto fwRawData = new unsigned char[FW_PACKET_SIZE];
@@ -247,7 +246,6 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	
 	//erase
 	pos = 0;
-	step = static_cast<double>(barWidth) / static_cast<double>(packetCount);
 	std::cout << "\nЭтап 2/3: стираем предыдущую версию ПО.\n";
 	int state;
 	for (auto stage = 0; stage < packetCount - 1; ++stage)
@@ -262,14 +260,15 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	}
 	//write
 	logList.push_back("All erase stages completed successfully.");
-	std::cout << "\nЭтап 3/3: осталось совсем немного. ";
+	std::cout << "\nЭтап 3/3: осталось совсем немного.";
 	char waitingStr[] = "-\\|/";
 	for (auto stage = 0; stage < 2; ++stage)
 	{
 		int posw8 = 0;
 		do
 		{
-			std::cout << waitingStr[posw8 == 4 ? posw8 = 0 : posw8++] << "\b";
+			//std::cout << waitingStr[posw8 == 4 ? posw8 = 0 : posw8++] << "\b";
+			std::cout << ".";
 			state = readReplyState(ft_handle);
 			Sleep(100);
 		} while (state == NULL);
