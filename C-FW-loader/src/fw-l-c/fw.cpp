@@ -1,4 +1,4 @@
-#include <string.h>
+#include <string>
 #include <tchar.h>
 #include "StrategyDeployment .h"
 #include <iostream>
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 	}
 	if (devCount > 1)
 	{
-		cout << "Ошибка: должно быть подключено только одно устройство." << endl;
+		cout << "Ошибка: должно быть подключено только одно устройство.\n" << endl;
 		system("pause");
 		return -1;
 	}
@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 		std::string pathToCommodFile(argv[1]);
 		if (!isFileExitWinXp(pathToCommodFile))
 		{
-		std:cout << "Файла с таким именем не существует";
+		std:cout << "Файла с таким именем не существует.\n";
 			system("pause");
 			return -1;
 		}
@@ -55,16 +55,17 @@ int main(int argc, char* argv[])
 		if (!manager->loadFirmWare())
 		{
 			cout << "\nОшибка: не удалось инициализировать процедуру загрузки ПО.\n";
+			manager->saveLog();
 			system("pause");
 			return -1;
 		}
-		cout << "\nПО успешно загружено. Приятных полетов!";
+		cout << "\nПО успешно загружено. Приятных полетов!\n";
 		manager->saveLog();
 		delete manager;
 		return 0;
 
 	}
-	cout << "Ошибка - неверный формат. Должен быть введен полный путь до загружаемого ПО." << endl;
+	cout << "Ошибка - неверный формат. Должен быть введен полный путь до загружаемого ПО.\n" << endl;
 	system("pause");
 	return -1;
 }

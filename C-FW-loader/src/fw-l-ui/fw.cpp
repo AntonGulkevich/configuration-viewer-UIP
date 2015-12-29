@@ -355,7 +355,8 @@ void onLoadCMClicked(HWND hWnd)
 	auto manager = new StrategyDeployment();	
 	manager->setFirmWareFileName(pathToCommodFile);
 	manager->setHwindow(hWnd);
-	auto isOK = manager->loadFirmWare(currentDeviceNumber);
+	manager->initProtocolVersion(currentDeviceNumber);
+	auto isOK = manager->loadFirmWare(currentDeviceNumber);	
 	manager->saveLog();
 	delete manager;
 	std::string resultLog = isOK ? "ПО загружено успешно." : "ПО не загружено.";

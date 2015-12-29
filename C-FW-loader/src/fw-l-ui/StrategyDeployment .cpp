@@ -9,6 +9,8 @@ StrategyDeployment::StrategyDeployment()
 	commodFile = nullptr;
 	currentFTDIDevice = -1;
 	hwnd = nullptr;
+	protocolVersion = 1;
+	currentPackenNumber = 0;
 }
 bool StrategyDeployment::saveFile(const std::string fileName, unsigned char *buffer, long size, const std::string &param)
 {
@@ -20,7 +22,7 @@ bool StrategyDeployment::saveFile(const std::string fileName, unsigned char *buf
 	}
 	if (!fwrite(buffer, sizeof(char), size, file))
 	{
-		logList.push_back("Unable to saveFile: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		addToLog("Unable to saveFile: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
 	fclose(file);
@@ -36,12 +38,12 @@ bool StrategyDeployment::saveFile(const std::string fileName, const std::string&
 	FILE *file;
 	if (fopen_s(&file, fileName.c_str(), param.c_str()) != 0)
 	{
-		logList.push_back("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		addToLog("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
 	if (!fwrite(cstr, sizeof(char), size, file))
 	{
-		logList.push_back("Unable to saveFile: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		addToLog("Unable to saveFile: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
 	fclose(file);
@@ -66,7 +68,7 @@ bool StrategyDeployment::saveFile(const std::string fileName, const std::list<st
 	FILE *file;
 	if (fopen_s(&file, fileName.c_str(), "a+b") != 0)
 	{
-		logList.push_back("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		addToLog("Unable to open file for write: " + fileName + ". Error: " + std::to_string(GetLastError()));
 		return false;
 	}
 	for (auto it = listToSave.begin(); it != listToSave.end(); ++it)
@@ -82,12 +84,12 @@ bool StrategyDeployment::openfile(const std::string fileName)
 {
 	if (!isFileExists(fileName))
 	{
-		logList.push_back("File:" + fileName + " is not exist");
+		addToLog("File:" + fileName + " is not exist");
 		return false;
 	}
 	commodFileSize = getFileSize(fileName);
 	if (fopen_s(&commodFile, fileName.c_str(), "r+b") != 0)
-		logList.push_back("Can not open file: " + fileName + ". Error: " + std::to_string(GetLastError()));
+		addToLog("Can not open file: " + fileName + ". Error: " + std::to_string(GetLastError()));
 	
 	return true;
 }
@@ -127,10 +129,10 @@ void StrategyDeployment::setFTDIDevice(char* serialNumber)
 bool StrategyDeployment::loadFirmWare()
 {
 	if (getDevicesCount() <= 0) {
-		logList.push_back("No FTDI defices found!");
+		addToLog("No FTDI defices found!");
 		return false;
 	}
-	logList.push_back("Connecting to the first FTDI device");
+	addToLog("Connecting to the first FTDI device");
 	return loadFirmWare(getFirstDeviceHandle());
 }
 
@@ -146,23 +148,22 @@ bool StrategyDeployment::loadFirmWare(FT_HANDLE ft_handle)
 		return false;
 	if (readResponse(ft_handle, 15) != OKREPLY)
 	{
-		logList.push_back("Error: fw can not be load.");
+		addToLog("Error: fw can not be load.");
 		return false;
 	}
 	Sleep(500);
 	if (FT_Purge(ft_handle, FT_PURGE_RX) != FT_OK)
 	{
-		logList.push_back("Error :FT_Purge receive	buffer.");
+		addToLog("Error :FT_Purge receive	buffer.");
 		return false;
 	}
 	Sleep(500);
 	if (!sendFW(ft_handle))
 		return false;
-	logList.push_back("FW loaded to the FTDI device.");
+	addToLog("FW loaded to the FTDI device.");
 	/*reboot*/
-	if (!sendShortCommand(ft_handle, Reboot))
-		return false;
-	logList.push_back("Rebooting the first FTDI device.");
+	sendShortCommand(ft_handle, Reboot);
+	addToLog("Rebooting the first FTDI device.");
 	FT_Close(ft_handle);
 	return true;
 }
@@ -177,7 +178,7 @@ char StrategyDeployment::receiveByte(FT_HANDLE ft_handle)
 	unsigned long bytesRead;
 	char* byteRep = new char[1];
 	if (FT_Read(ft_handle, byteRep, 1, &bytesRead) != FT_OK) {
-		logList.push_back("Error: FT_Read.");
+		addToLog("Error: FT_Read.");
 		return NULL;
 	}
 	char response = byteRep[0];
@@ -190,13 +191,14 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 	/*send FirmWare to the ftdi device with handle ft_handle*/
 	if (!isFileExists(firmWareFileName))
 	{
-		logList.push_back("File: " + firmWareFileName + " is not exist");
+		addToLog("File: " + firmWareFileName + " is not exist");
 		return false;
 	}
 	FILE * fw_file;
 	auto fwFileSize = getFileSize(firmWareFileName);
 	if (fopen_s(&fw_file, firmWareFileName.c_str(), "r+b") != 0)
-		logList.push_back("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));	
+		addToLog("Can not open file: " + firmWareFileName + ". Error: " + std::to_string(GetLastError()));	
+
 	short packetCount = std::ceil(static_cast<double>(fwFileSize) / static_cast<double>(FW_PACKET_SIZE));
 	unsigned int lastPacketSize = fwFileSize - (packetCount - 1)*FW_PACKET_SIZE;
 	CRC32_n crc32;
@@ -222,9 +224,9 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 			for (auto attempts = FW_MAX_RETRY; attempts != 0; --attempts) {
 				if (sendPacket(ft_handle, buffer, buffer.size(), &bytesSended) == FT_OK)
 					break;
-				logList.push_back("Error: FT_Write. Retry " + std::to_string(attempts));
+				addToLog("Error: FT_Write. Retry " + std::to_string(attempts));
 				if (attempts == 1) {
-					logList.push_back("Exceeded the maximum number of attempts.");
+					addToLog("Exceeded the maximum number of attempts.");
 					fclose(fw_file);
 					return false;
 				}
@@ -233,9 +235,9 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 				reply = receiveByte(ft_handle);
 				if (reply != NULL)
 					break;
-				logList.push_back("Error: FW_No_Reply. Retry " + std::to_string(attempts));
+				addToLog("Error: FW_No_Reply. Retry " + std::to_string(attempts));
 				if (attempts == 1) {
-					logList.push_back("Exceeded the maximum number of attempts. Error:" + std::to_string(reply));
+					addToLog("Exceeded the maximum number of attempts. Error:" + std::to_string(reply));
 					fclose(fw_file);
 					return false;
 				}
@@ -243,13 +245,13 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 			if (reply != 0xAA || reply != 0x88 || reply != 0x99)
 				break;
 			if (attempts_ == 1) {
-				logList.push_back("Exceeded the maximum number of attempts. Error:" + std::to_string(reply));
+				addToLog("Exceeded the maximum number of attempts. Error:" + std::to_string(reply));
 				fclose(fw_file);
 				return false;
 			}
 		}
 		if (reply != 0x77) {
-			logList.push_back("Error: firmware loading stopped with error byte received: " + std::to_string(reply));
+			addToLog("Error: firmware loading stopped with error byte received: " + std::to_string(reply));
 			fclose(fw_file);
 			return false;
 		}
@@ -266,7 +268,7 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 		incrProgressBar(2);
 	}
 	//write
-	logList.push_back("All erase stages completed successfully.");
+	addToLog("All erase stages completed successfully.");
 	for (auto stage = 0; stage < 2; ++stage)
 	{
 		do
@@ -276,7 +278,7 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 		} while (state == NULL);
 		incrProgressBar(2);
 	}
-	logList.push_back("Write completed.");
+	addToLog("Write completed.");
 	fclose(fw_file);
 	return true;
 }
@@ -284,10 +286,10 @@ bool StrategyDeployment::sendFW(FT_HANDLE ft_handle)
 void StrategyDeployment::rebootDevice()
 {
 	if (getDevicesCount() <= 0) {
-		logList.push_back("No FTDI defices found!");
+		addToLog("No FTDI defices found!");
 		return;
 	}
-	logList.push_back("Connecting to the first FTDI device");
+	addToLog("Connecting to the first FTDI device");
 	auto ft_handle = getFirstDeviceHandle();
 	if (ft_handle == nullptr)
 		return;
@@ -296,7 +298,7 @@ void StrategyDeployment::rebootDevice()
 	if (!sendShortCommand(ft_handle, Commands::Reboot))
 		return;
 	FT_Close(ft_handle);
-	logList.push_back("The first device rebooted.");
+	addToLog("The first device rebooted.");
 }
 
 int StrategyDeployment::readReplyState(FT_HANDLE ft_handle)
@@ -305,7 +307,7 @@ int StrategyDeployment::readReplyState(FT_HANDLE ft_handle)
 	unsigned long bytesRead;
 	unsigned char* byteRep = new unsigned char[size];
 	if (FT_Read(ft_handle, byteRep, size, &bytesRead) != FT_OK) {
-		logList.push_back("Error: FT_Read.");
+		addToLog("Error: FT_Read.");
 		return -1;
 	}
 	if (bytesRead == 0)
@@ -357,18 +359,18 @@ FT_HANDLE StrategyDeployment::getFirstDeviceHandle()
 FT_HANDLE StrategyDeployment::getDeviceByDescription(const std::string description)
 {
 	if (getDevicesCount() == 0) {
-		logList.push_back("No devices have been found.");
+		addToLog("No devices have been found.");
 		return nullptr;
 	}
 	FT_HANDLE ftHandle;
 	if (FT_OpenEx(PVOID(description.c_str()), FT_OPEN_BY_DESCRIPTION, &ftHandle) == FT_OK) {
 		// FT_Open OK, use ftHandle to access device
-		logList.push_back("The device: " + description + " opened.");
+		addToLog("The device: " + description + " opened.");
 		return ftHandle;
 	}
 	else {
 		// FT_Open failed
-		logList.push_back("Error: The device: " + description + " can not be opened!");
+		addToLog("Error: The device: " + description + " can not be opened!");
 		return nullptr;
 	}
 }
@@ -383,18 +385,18 @@ FT_STATUS StrategyDeployment::sendPacket(FT_HANDLE ftHandle, std::vector<unsigne
 FT_HANDLE StrategyDeployment::getDeviceHandle(unsigned int DeviceNumber)
 {
 	if (getDevicesCount() == 0) {
-		logList.push_back("No devices have been found.");
+		addToLog("No devices have been found.");
 		return nullptr;
 	}
 	FT_HANDLE ftHandle;
 	if (FT_Open(DeviceNumber, &ftHandle) == FT_OK) {
 		// FT_Open OK, use ftHandle to access device
-		logList.push_back("Device opened.");
+		addToLog("Device opened.");
 		return ftHandle;
 	}
 	else {
 		// FT_Open failed
-		logList.push_back("Error: the device can not be opened!");
+		addToLog("Error: the device can not be opened!");
 		return nullptr;
 	}
 }
@@ -404,7 +406,7 @@ int StrategyDeployment::readResponse(FT_HANDLE ft_handle, unsigned int size)
 	unsigned long bytesRead;
 	unsigned char* byteRep = new unsigned char[size];
 	if (FT_Read(ft_handle, byteRep, size, &bytesRead) != FT_OK) {
-		logList.push_back("Error: FT_Read.");
+		addToLog("Error: FT_Read.");
 		return -1;
 	}
 	if (bytesRead == 0)
@@ -423,10 +425,15 @@ FT_STATUS StrategyDeployment::closeFTDI(FT_HANDLE ftHandle)
 
 bool StrategyDeployment::sendShortCommand(FT_HANDLE ft_handle, Commands command)
 {
-	short size = 4 * (3 + 1) - 1;
+	short size = protocolVersion ? 23 : 15;
 	std::vector <unsigned char> vecData;
 	addIntToVect(STARTFLAG, vecData);
 	addShortToVect(size, vecData);
+	if (protocolVersion)
+	{
+		addIntToVect(PACKET_NUMBER_MARKER, vecData);
+		addIntToVect(++currentPackenNumber, vecData);
+	}
 	addIntToVect(COMMANDFLAG, vecData);
 	addIntToVect(1, vecData);
 
@@ -434,27 +441,49 @@ bool StrategyDeployment::sendShortCommand(FT_HANDLE ft_handle, Commands command)
 	vecData.push_back(command);
 	vecData.push_back(0x00);
 	vecData.push_back(0xE4);
+	if (protocolVersion)
+	{
+		int bufferSize = 20;
+		unsigned char * buffer = new unsigned char[bufferSize];
+		stdext::checked_array_iterator<unsigned char *> chkd_test_array(buffer, bufferSize);
+		std::copy_n(vecData.begin() + 6, bufferSize, chkd_test_array);
+		CRC32_n crc32n;
+		crc32n.ProcessCRC(buffer, bufferSize);
+		addIntToVect(crc32n.GetCRC32(), vecData);
+		delete[] buffer;
+	}
+	else {
+		addIntToVect(ENDFLAG, vecData);
+	}
 
-	addIntToVect(ENDFLAG, vecData);
 	unsigned long bytesWritten;
-	if (sendPacket(ft_handle, vecData, vecData.size(), &bytesWritten) == FT_OK)
-		return true;
-	logList.push_back("Error: command can not be sended!");
-	return false;
+	if (sendPacket(ft_handle, vecData, vecData.size(), &bytesWritten) != FT_OK)
+	{
+		addToLog("Error: command can not be sended!");
+		return false;
+	}
+	if (protocolVersion) {
+		if (!readVerificationReply(ft_handle))
+		{
+			addToLog("Error: wrong responce to command " + std::to_string(command) + " !");
+			return false;
+		}
+	}
+	return true;
 }
 
 bool StrategyDeployment::setFTDISettings(FT_HANDLE ft_handle)
 {
 	if (FT_SetBaudRate(ft_handle, 12000000) != FT_OK) {
-		logList.push_back("Error: FT_SetBaudRate.");
+		addToLog("Error: FT_SetBaudRate.");
 		return false;
 	}
 	if (FT_SetDataCharacteristics(ft_handle, 8, 0, 0) != FT_OK) {
-		logList.push_back("Error: FT_SetDataCharacteristics.");
+		addToLog("Error: FT_SetDataCharacteristics.");
 		return false;
 	}
 	if (FT_SetTimeouts(ft_handle, 2500, 200) != FT_OK) {
-		logList.push_back("Error: FT_SetTimeouts.");
+		addToLog("Error: FT_SetTimeouts.");
 		return false;
 	}
 	return true;
@@ -465,18 +494,84 @@ bool StrategyDeployment::setFTDISettings(FT_HANDLE ft_handle, unsigned long baud
 	unsigned long readTimeOut, unsigned long writeTimeOut)
 {
 	if (FT_SetBaudRate(ft_handle, baudRate) != FT_OK) {
-		logList.push_back("Error: FT_SetBaudRate.");
+		addToLog("Error: FT_SetBaudRate.");
 		return false;
 	}
 	if (FT_SetDataCharacteristics(ft_handle, worldLength, stopBits, parity) != FT_OK) {
-		logList.push_back("Error: FT_SetDataCharacteristics.");
+		addToLog("Error: FT_SetDataCharacteristics.");
 		return false;
 	}
 	if (FT_SetTimeouts(ft_handle, readTimeOut, writeTimeOut) != FT_OK) {
-		logList.push_back("Error: FT_SetTimeouts.");
+		addToLog("Error: FT_SetTimeouts.");
 		return false;
 	}
 	return true;
+}
+int StrategyDeployment::getVersion()
+{
+	FT_HANDLE ft_handle = getFirstDeviceHandle();
+	setFTDISettings(ft_handle);
+	sendShortCommand(ft_handle, DiagnosticDisable);
+	sendShortCommand(ft_handle, VersionRequest);
+	int size = 31;
+	unsigned long bytesRead;
+	unsigned char* byteRep = new unsigned char[size];
+	if (FT_Read(ft_handle, byteRep, size, &bytesRead) != FT_OK) {
+		addToLog("Error: FT_Read.");
+		return -1;
+	}
+	std::vector<unsigned char> data(byteRep, byteRep + size);
+	if (bytesRead == 0)
+		return -1;
+	int response = data[22];
+	delete[] byteRep;
+	FT_Close(ft_handle);
+	return response;
+}
+
+void StrategyDeployment::initProtocolVersion()
+{
+	FT_HANDLE ft_handle = getFirstDeviceHandle();
+	if (ft_handle != nullptr)
+	{
+		setFTDISettings(ft_handle);
+		sendShortCommand(ft_handle, DiagnosticEnable);
+		readVerificationReply(ft_handle) ? protocolVersion = 1 : protocolVersion = 0;
+	}
+	FT_Close(ft_handle);
+}
+
+void StrategyDeployment::initProtocolVersion(int deviceNumver)
+{
+	FT_HANDLE ft_handle = getDeviceHandle(deviceNumver);
+	if (ft_handle != nullptr)
+	{
+		setFTDISettings(ft_handle);
+		sendShortCommand(ft_handle, DiagnosticDisable);
+		readVerificationReply(ft_handle) ? protocolVersion = 1 : protocolVersion = 0;
+	}
+	FT_Close(ft_handle);
+}
+
+bool StrategyDeployment::readVerificationReply(FT_HANDLE ft_handle)
+{
+	int size = 11;
+	unsigned long bytesRead;
+	unsigned char* byteRep = new unsigned char[size];
+	if (FT_Read(ft_handle, byteRep, size, &bytesRead) != FT_OK) {
+		addToLog("Error: FT_Read.");
+		return -1;
+	}
+	if (bytesRead == 0)
+		return -1;
+	int response = (byteRep[bytesRead - 1] << 24) | (byteRep[bytesRead - 2] << 16)
+		| (byteRep[bytesRead - 3] << 8) | byteRep[bytesRead - 4];
+	int marker = (byteRep[bytesRead - 5] << 24) | (byteRep[bytesRead - 6] << 16)
+		| (byteRep[bytesRead - 7] << 8) | byteRep[bytesRead - 8];
+	delete[] byteRep;
+	if (marker != PACKET_NUMBER_MARKER)
+		return false;
+	return response == currentPackenNumber;
 }
 
 void StrategyDeployment::saveLog()
@@ -489,6 +584,16 @@ StrategyDeployment::~StrategyDeployment()
 	if (commodFile != nullptr) fclose(commodFile);
 }
 
+void StrategyDeployment::addToLog(const std::string& str)
+{
+	time_t t = time(0);
+	struct tm * now = localtime(&t);
+	std::string dateTime = std::to_string(now->tm_year + 1900);
+	dateTime = dateTime + "-" + std::to_string(now->tm_mon + 1) + "-" + std::to_string(now->tm_mday) + " " +
+		std::to_string(now->tm_hour) + ":" + std::to_string(now->tm_min) + ":" + std::to_string(now->tm_sec) + " ";
+	dateTime += str;
+	logList.push_back(dateTime+"\r\n");
+}
 void StrategyDeployment::incrProgressBar(int step)
 {
 	if (hwnd != nullptr) {

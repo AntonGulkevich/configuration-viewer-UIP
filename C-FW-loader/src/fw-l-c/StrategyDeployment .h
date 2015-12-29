@@ -9,6 +9,7 @@
 #include <iterator>
 #include <iomanip>
 #include <fstream>
+#include <ctime>
 
 #define HEADER_SIZE 256
 #define CLOCK_FILE_SIZE 64
@@ -33,6 +34,8 @@
 #define FW_WRITE_DONE_FLAG 0x2
 #define FW_ERASE_DONE_FLAG 0x1
 #define FW_ALL_DONE_FLAG 0x3
+#define PACKET_NUMBER_MARKER 0xFEB7A376
+#define DIAG_VERSION_MARKER 0x70A1EA5F
 
 //end of define flags
 
@@ -49,12 +52,13 @@ private:
 	std::string firmWareFileName;
 	bool saveToSameFolder;
 	std::list<std::string> logList;
-	HWND hwnd;
 	struct Fat {
 		unsigned int address;
 		unsigned int size;
 	};
 	unsigned int currentFTDIDevice;
+	int currentPackenNumber;
+	bool protocolVersion;// 0-v1 1-v2
 public:
 	enum Commands
 	{
@@ -81,7 +85,6 @@ public:
 	//set
 	void zetSaveToSameFolder(bool state) { saveToSameFolder = state; }
 	void setFirmWareFileName(const std::string & fileName) { firmWareFileName = fileName; }
-	void setHwindow(HWND hwnd_) { hwnd = hwnd_;}
 	//operations with files
 	bool saveFile(const std::string fileName, unsigned char *buffer, long size, const std::string &param);
 	bool saveFile(const std::string fileName, const std::string &buffer, long size, const std::string &param);
@@ -102,10 +105,8 @@ public:
 		return static_cast<long>(in.tellg());
 	}
 	void addIntToVect(int var, std::vector<unsigned char> &vector);
-	void addShortToVect(short var, std::vector <unsigned char> &vector);
-	
+	void addShortToVect(short var, std::vector <unsigned char> &vector);	
 	/**********************ft_device*****************************/
-
 	//set current FTDI device number
 	void setFTDIdevice(int number);
 	//set current FTDI device number due to its serial number
@@ -144,7 +145,7 @@ public:
 	int readResponse(FT_HANDLE ft_handle, unsigned int size);
 	//close the FTDI device
 	FT_STATUS closeFTDI(FT_HANDLE ftHandle);
-	//send one short command to the FTDDI device
+	//send one short command to the FTDDI device due to old protocol version
 	bool sendShortCommand(FT_HANDLE ft_handle, Commands command);
 	//set default FTDI settings
 	bool setFTDISettings(FT_HANDLE ft_handle);
@@ -152,8 +153,16 @@ public:
 	bool setFTDISettings(FT_HANDLE ft_handle, unsigned long baudRate,
 		unsigned char worldLength, unsigned char stopBits, unsigned char parity,
 		unsigned long readTimeOut, unsigned long writeTimeOut);
+	//get current version
+	int getVersion();
+	//define protocol version
+	void initProtocolVersion();
+	//read verification reply
+	bool readVerificationReply(FT_HANDLE ft_handle);
+	/**********************ft_device*****************************/
 	//log
 	void saveLog();
+	void addToLog(const std::string &str);
 	//console
 	static void showState(double pos, int barWidth, double  currentProgress, double max);
 	//destr

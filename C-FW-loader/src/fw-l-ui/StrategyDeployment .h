@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <tchar.h>
 #include <fstream>
+#include <ctime>
 
 #define HEADER_SIZE 256
 #define CLOCK_FILE_SIZE 64
@@ -33,6 +34,8 @@
 #define FW_WRITE_DONE_FLAG 0x2
 #define FW_ERASE_DONE_FLAG 0x1
 #define FW_ALL_DONE_FLAG 0x3
+#define PACKET_NUMBER_MARKER 0xFEB7A376
+#define DIAG_VERSION_MARKER 0x70A1EA5F
 
 //end of define flags
 
@@ -60,6 +63,8 @@ private:
 	};
 	//ft_device
 	unsigned int currentFTDIDevice;
+	int currentPackenNumber;
+	bool protocolVersion;// 0-v1 1-v2
 	//enum Commands
 	//{
 	//	None = 0,
@@ -166,8 +171,16 @@ public:
 	bool setFTDISettings(FT_HANDLE ft_handle, unsigned long baudRate,
 		unsigned char worldLength, unsigned char stopBits, unsigned char parity,
 		unsigned long readTimeOut, unsigned long writeTimeOut);
+	//get current version
+	int getVersion();
+	//define protocol version
+	void initProtocolVersion();
+	void initProtocolVersion(int deviceNumver);
+	//read verification reply
+	bool readVerificationReply(FT_HANDLE ft_handle);
 	//log
 	void saveLog();
+	void addToLog(const std::string &str);
 	//ui
 	void incrProgressBar(int step);
 	//destr

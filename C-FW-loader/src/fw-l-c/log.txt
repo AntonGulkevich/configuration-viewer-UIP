@@ -1,1 +1,29 @@
-Connecting to the first FTDI deviceDevice opened.All erase stages completed successfully.Write completed.FW loaded to the FTDI device.Rebooting the first FTDI device.Connecting to the first FTDI deviceDevice opened.All erase stages completed successfully.Write completed.FW loaded to the FTDI device.Rebooting the first FTDI device.Connecting to the first FTDI deviceDevice opened.All erase stages completed successfully.Write completed.FW loaded to the FTDI device.Rebooting the first FTDI device.
+2015-12-25 14:33:20 Device opened.
+2015-12-25 14:33:23 Connecting to the first FTDI device...
+2015-12-25 14:33:23 Device opened.
+2015-12-25 14:36:09 All erase stages completed successfully.
+2015-12-25 14:36:44 Write completed.
+2015-12-25 14:36:44 FW loaded to the FTDI device.
+2015-12-25 14:36:44 Error: wrong responce!
+2015-12-25 14:36:44 Rebooting the first FTDI device.
+2015-12-25 14:41:37 Device opened.
+2015-12-25 14:41:40 Connecting to the first FTDI device...
+2015-12-25 14:41:40 Device opened.
+2015-12-25 14:44:26 All erase stages completed successfully.
+2015-12-25 14:45:01 Write completed.
+2015-12-25 14:45:01 FW loaded to the FTDI device.
+2015-12-25 14:45:01 Error: wrong responce to command 11 !
+2015-12-25 14:45:01 Rebooting the first FTDI device.
+2015-12-28 14:6:48 Device opened.
+2015-12-28 14:6:48 Error: wrong responce to command 6 !
+2015-12-28 14:6:48 Connecting to the first FTDI device...
+2015-12-28 14:6:48 Device opened.
+2015-12-28 14:6:48 Error: fw can not be load.
+2015-12-28 15:15:1 Device opened.
+2015-12-28 15:15:4 Connecting to the first FTDI device...
+2015-12-28 15:15:4 Device opened.
+2015-12-28 15:17:51 All erase stages completed successfully.
+2015-12-28 15:18:26 Write completed.
+2015-12-28 15:18:26 FW loaded to the FTDI device.
+2015-12-28 15:18:26 Error: wrong responce to command 11 !
+2015-12-28 15:18:26 Rebooting the first FTDI device.
